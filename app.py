@@ -84,7 +84,10 @@ def index():
     for fabric in fabrics:
         name = fabric["name"]
         analyzer = _get_analyzer(name)
-        analysis = analyzer.analyze()
+        try:
+            analysis = analyzer.analyze()
+        except Exception as exc:
+            analysis = {"error": str(exc)}
         summary = analysis.get("summary", {})
         ports = analysis.get("ports", {})
         for key in ("leafs", "spines", "fex", "tenants", "vrfs", "bds", "epgs", "subnets", "contracts"):

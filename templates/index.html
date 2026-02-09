@@ -108,7 +108,8 @@
             <div class="detail-block">
               <h4>Cisco Limits</h4>
               <div class="limit-meta">
-                Release {{ item.analysis.cisco_limits.release }} · APIC {{ item.analysis.cisco_limits.cluster_size }}-node
+                {% set limits = item.analysis.get('cisco_limits', {}) %}
+                Release {{ limits.get('release', 'n/a') }} · APIC {{ limits.get('cluster_size', 'n/a') }}-node
               </div>
               <div class="limit-grid">
                 <div>Leafs</div><div>{{ item.analysis.headroom.leafs.current }} / {{ item.analysis.headroom.leafs.maximum }}</div><div>{{ item.analysis.headroom.leafs.remaining }} left</div>
