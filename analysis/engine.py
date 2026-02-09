@@ -377,6 +377,7 @@ class CapacityAnalyzer:
         spines = by_role.get("spine", [])
         fex = self._by_type.get("eqptFex", [])
 
+        tenant_rollups = self._get_tenant_rollups()
         summary = {
             "leafs": len(leafs),
             "spines": len(spines),
@@ -392,6 +393,8 @@ class CapacityAnalyzer:
         limits = self._get_cisco_limits()
         per_cluster = limits.get("per_cluster", {})
         per_fabric = limits.get("per_fabric", {})
+        per_tenant_epg_limit = per_fabric.get("epgs_per_tenant_multi") if summary["tenants"] > 1 else per_fabric.get("epgs_per_tenant_single")
+        max_epg_per_tenant = max((row.get("epgs", 0) for row in tenant_rollups.get("rows", [])), default=0)
         headroom = {
             "leafs": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches")),
             "leafs_per_pod": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches_per_pod")),
@@ -403,13 +406,14 @@ class CapacityAnalyzer:
             "contracts": self._compute_headroom(summary["contracts"], per_fabric.get("contracts")),
             "fex": self._compute_headroom(summary["fex"], per_fabric.get("fexs")),
             "ports": self._compute_headroom(ports.get("total", 0), per_fabric.get("physical_ports")),
+            "epgs_per_tenant": self._compute_headroom(max_epg_per_tenant, per_tenant_epg_limit),
         }
 
         return {
             "summary": summary,
             "completeness": self.get_data_completeness(),
             "ports": ports,
-            "tenants": self._get_tenant_rollups(),
+            "tenants": tenant_rollups,
             "epg_spread": self._get_epg_spread(),
             "vlan_overlap": self._get_vlan_overlap(),
             "vlan_pools": self._get_vlan_pools(),

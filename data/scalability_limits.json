@@ -18,7 +18,11 @@
       "contracts": 10000,
       "contract_filters": 10000,
       "epgs": 15000,
+      "epgs_l2_total": 21000,
+      "epgs_per_tenant_single": 4000,
+      "epgs_per_tenant_multi": 500,
       "bds": 15000,
+      "bds_l2_total": 21000,
       "physical_ports": 24000
     }
   }
