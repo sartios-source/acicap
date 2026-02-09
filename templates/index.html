@@ -110,6 +110,7 @@
               <div class="panel-actions">
                 <button class="ghost small" onclick="selectFabric('{{ item.fabric }}')">Focus</button>
                 <a class="primary small" href="{{ url_for('export_excel', fabric_name=item.fabric) }}">Export Excel</a>
+                <button class="danger small" onclick="deleteFabric('{{ item.fabric }}')">Delete</button>
               </div>
             </div>
           </div>

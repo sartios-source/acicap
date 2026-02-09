@@ -50,6 +50,15 @@ async function selectFabric(name) {
   location.reload();
 }
 
+async function deleteFabric(name) {
+  const ok = confirm(`Delete fabric "${name}"? This removes all datasets.`);
+  if (!ok) return;
+  const res = await fetch(`/fabrics/${name}`, { method: 'DELETE' });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) return alert(data.error || 'Delete failed');
+  location.reload();
+}
+
 function toggleFabric(name) {
   const panel = document.getElementById(`detail-${name}`);
   if (!panel) return;

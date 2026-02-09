@@ -148,6 +148,22 @@ button.primary, a.primary {
   box-shadow: 0 12px 24px rgba(0, 112, 184, 0.25);
 }
 
+.danger, button.danger {
+  background: #ffe8e8;
+  color: #b42318;
+  border: 1px solid #f5c2c2;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.danger.small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
 button.primary:hover, a.primary:hover {
   transform: translateY(-2px);
 }

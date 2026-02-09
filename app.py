@@ -124,6 +124,17 @@ def create_fabric():
     return jsonify({"success": True, "fabric": name})
 
 
+@app.route("/fabrics/<fabric_name>", methods=["DELETE"])
+@csrf.exempt
+def delete_fabric(fabric_name):
+    fabric_name = validate_fabric_name(fabric_name)
+    fm.delete_fabric(fabric_name)
+    ANALYZER_CACHE.pop(fabric_name, None)
+    if session.get("current_fabric") == fabric_name:
+        session.pop("current_fabric", None)
+    return jsonify({"success": True})
+
+
 @app.route("/fabrics/<fabric_name>/select", methods=["POST"])
 @csrf.exempt
 def select_fabric(fabric_name):
