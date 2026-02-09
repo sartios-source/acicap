@@ -131,19 +131,24 @@
             </div>
             <div class="detail-block">
               <h4>Additional Cisco Limits</h4>
+              {% set per_fabric = item.analysis.cisco_limits.get('per_fabric', {}) %}
+              {% set other = item.analysis.cisco_limits.get('other_limits', {}) %}
+              {% set vmm = other.get('vmm', {}) %}
+              {% set l47 = other.get('l4_l7', {}) %}
+              {% set netflow = other.get('netflow', {}) %}
               <div class="limit-grid">
-                <div>Endpoints/Leaf</div><div>{{ item.analysis.cisco_limits.per_fabric.endpoints_per_leaf_default }}</div><div>Default profile</div>
-                <div>Endpoints/Leaf (Dual Stack)</div><div>{{ item.analysis.cisco_limits.per_fabric.endpoints_per_leaf_high_dual_stack }}</div><div>High DS</div>
-                <div>Ports x VLANs</div><div>{{ item.analysis.cisco_limits.per_fabric.ports_x_vlans }}</div><div>Max</div>
-                <div>Static Bindings</div><div>{{ item.analysis.cisco_limits.per_fabric.static_port_bindings }}</div><div>Max</div>
-                <div>L3Outs/Fabric</div><div>{{ item.analysis.cisco_limits.per_fabric.l3outs_per_fabric_lse }}</div><div>LSE</div>
-                <div>Ext EPGs/Fabric</div><div>{{ item.analysis.cisco_limits.per_fabric.external_epgs_per_fabric_lse }}</div><div>LSE</div>
-                <div>PC/vPC per Leaf</div><div>{{ item.analysis.cisco_limits.per_fabric.pc_vpc_per_leaf }}</div><div>Max</div>
+                <div>Endpoints/Leaf</div><div>{{ per_fabric.get('endpoints_per_leaf_default', 'n/a') }}</div><div>Default profile</div>
+                <div>Endpoints/Leaf (Dual Stack)</div><div>{{ per_fabric.get('endpoints_per_leaf_high_dual_stack', 'n/a') }}</div><div>High DS</div>
+                <div>Ports x VLANs</div><div>{{ per_fabric.get('ports_x_vlans', 'n/a') }}</div><div>Max</div>
+                <div>Static Bindings</div><div>{{ per_fabric.get('static_port_bindings', 'n/a') }}</div><div>Max</div>
+                <div>L3Outs/Fabric</div><div>{{ per_fabric.get('l3outs_per_fabric_lse', 'n/a') }}</div><div>LSE</div>
+                <div>Ext EPGs/Fabric</div><div>{{ per_fabric.get('external_epgs_per_fabric_lse', 'n/a') }}</div><div>LSE</div>
+                <div>PC/vPC per Leaf</div><div>{{ per_fabric.get('pc_vpc_per_leaf', 'n/a') }}</div><div>Max</div>
               </div>
               <div class="limit-meta" style="margin-top:8px;">
-                VMM: {{ item.analysis.cisco_limits.other_limits.vmm.epgs_all_scvmm_domains }} EPGs all domains ·
-                L4-7: {{ item.analysis.cisco_limits.other_limits.l4_l7.logical_device_clusters }} device clusters ·
-                NetFlow: {{ item.analysis.cisco_limits.other_limits.netflow.records_per_collect_interval }} records
+                VMM: {{ vmm.get('epgs_all_scvmm_domains', 'n/a') }} EPGs all domains ·
+                L4-7: {{ l47.get('logical_device_clusters', 'n/a') }} device clusters ·
+                NetFlow: {{ netflow.get('records_per_collect_interval', 'n/a') }} records
               </div>
             </div>
             <div class="detail-block">
