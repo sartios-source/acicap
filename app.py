@@ -43,8 +43,8 @@ ANALYZER_CACHE: Dict[str, Dict[str, Any]] = {}
 
 def validate_fabric_name(name: str) -> str:
     import re
-    if not name or not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", name.strip()):
-        raise ValueError("Invalid fabric name. Use alphanumeric, underscore, hyphen (1-64).")
+    if not name or not re.fullmatch(r"[a-zA-Z0-9_.-]{1,64}", name.strip()):
+        raise ValueError("Invalid fabric name. Use alphanumeric, dot, underscore, hyphen (1-64).")
     return name.strip()
 
 
