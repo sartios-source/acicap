@@ -37,44 +37,18 @@
   <section class="content">
     <div class="summary-hero">
       <div>
-        <h1 id="summary-title">Capacity Summary</h1>
-        <p id="summary-sub">Fast, cached rollups across all fabrics. Select a fabric for full detail.</p>
+        <h1 id="summary-title">Fabric Summary</h1>
+        <p id="summary-sub">Key metrics per fabric. Select a fabric for full detail.</p>
       </div>
       <div class="summary-actions">
         <button class="ghost" onclick="loadFabric('all')">All Fabrics</button>
       </div>
     </div>
 
-    <div class="summary-grid">
+    <div class="fabric-summary-grid" id="fabric-summary-grid">
       <div class="summary-card">
-        <div class="metric-title">Leafs</div>
-        <div class="metric-value" data-count="0" id="total-leafs">0</div>
-        <div class="metric-sub" id="total-spines">Spines 0</div>
-      </div>
-      <div class="summary-card">
-        <div class="metric-title">Ports</div>
-        <div class="metric-value" data-count="0" id="total-ports">0</div>
-        <div class="metric-sub" id="total-ports-epg">Ports w/ EPG 0</div>
-      </div>
-      <div class="summary-card">
-        <div class="metric-title">Tenants</div>
-        <div class="metric-value" data-count="0" id="total-tenants">0</div>
-        <div class="metric-sub" id="total-vrfs">VRFs 0</div>
-      </div>
-      <div class="summary-card">
-        <div class="metric-title">Bridge Domains</div>
-        <div class="metric-value" data-count="0" id="total-bds">0</div>
-        <div class="metric-sub" id="total-bd-vrf">BDs 0 - VRFs 0</div>
-      </div>
-      <div class="summary-card">
-        <div class="metric-title">EPGs</div>
-        <div class="metric-value" data-count="0" id="total-epgs">0</div>
-        <div class="metric-sub" id="total-contracts">Contracts 0</div>
-      </div>
-      <div class="summary-card">
-        <div class="metric-title">Endpoints</div>
-        <div class="metric-value" data-count="0" id="total-endpoints">0</div>
-        <div class="metric-sub" id="total-fex">FEX 0</div>
+        <div class="metric-title">Loading fabrics...</div>
+        <div class="metric-sub">Please wait</div>
       </div>
     </div>
 

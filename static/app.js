@@ -131,10 +131,6 @@ function filterFabrics() {
   });
 }
 
-const SUMMARY_STATE = {
-  all: null
-};
-
 function setSummaryHeader(title, subtitle) {
   const titleEl = document.getElementById('summary-title');
   const subEl = document.getElementById('summary-sub');
@@ -142,31 +138,12 @@ function setSummaryHeader(title, subtitle) {
   if (subEl) subEl.textContent = subtitle;
 }
 
-function setSummaryCards(summary, ports) {
-  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-  setText('total-leafs', summary.leafs || 0);
-  setText('total-spines', `Spines ${summary.spines || 0}`);
-  setText('total-ports', ports.total || 0);
-  setText('total-ports-epg', `Ports w/ EPG ${ports.ports_with_epg || 0}`);
-  setText('total-tenants', summary.tenants || 0);
-  setText('total-vrfs', `VRFs ${summary.vrfs || 0}`);
-  setText('total-bds', summary.bds || 0);
-  setText('total-bd-vrf', `BDs ${summary.bds || 0} - VRFs ${summary.vrfs || 0}`);
-  setText('total-epgs', summary.epgs || 0);
-  setText('total-contracts', `Contracts ${summary.contracts || 0}`);
-  setText('total-endpoints', summary.endpoints || 0);
-  setText('total-fex', `FEX ${summary.fex || 0}`);
-}
-
 async function loadFabric(name) {
   const title = document.getElementById('detail-title');
   const meta = document.getElementById('detail-meta');
   const body = document.getElementById('detail-body');
   if (name === 'all') {
-    if (SUMMARY_STATE.all) {
-      setSummaryHeader('Capacity Summary', 'Fast, cached rollups across all fabrics. Select a fabric for full detail.');
-      setSummaryCards(SUMMARY_STATE.all.summary, SUMMARY_STATE.all.ports);
-    }
+    setSummaryHeader('Fabric Summary', 'Key metrics per fabric. Select a fabric for full detail.');
     title.textContent = 'All Fabrics';
     meta.textContent = 'Summary only';
     body.innerHTML = '<div class=\"empty\">Select a fabric to view full details.</div>';
@@ -190,8 +167,7 @@ async function loadFabric(name) {
   const headroom = data.headroom || {};
   const ports = data.ports || {};
   const limits = data.cisco_limits || {};
-  setSummaryHeader(`${name} Summary`, 'Selected fabric view');
-  setSummaryCards(summary, ports);
+  setSummaryHeader('Fabric Summary', 'Key metrics per fabric. Select a fabric for full detail.');
 
   body.innerHTML = `
     <div class=\"detail-grid\">
@@ -267,23 +243,15 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadSummaries() {
-  const totals = {
-    leafs: 0,
-    spines: 0,
-    fex: 0,
-    tenants: 0,
-    vrfs: 0,
-    bds: 0,
-    epgs: 0,
-    subnets: 0,
-    contracts: 0,
-    endpoints: 0,
-    ports: 0,
-    ports_with_epg: 0
-  };
+  const grid = document.getElementById('fabric-summary-grid');
+  if (grid) grid.innerHTML = '';
   const buttons = document.querySelectorAll('.fabric-item');
   const res = await fetch('/api/summary');
   const all = await res.json();
+  if (grid && buttons.length === 0) {
+    grid.innerHTML = '<div class="empty">No fabrics yet.</div>';
+    return;
+  }
   for (const btn of buttons) {
     const name = btn.dataset.fabric;
     const data = all[name] || {};
@@ -292,19 +260,31 @@ async function loadSummaries() {
     btn.querySelector('[data-fabric-metric="leafs"]').textContent = `${summary.leafs || 0} leafs`;
     btn.querySelector('[data-fabric-metric="epgs"]').textContent = `${summary.epgs || 0} epgs`;
     btn.querySelector('[data-fabric-metric="ports"]').textContent = `${ports.ports_with_epg || 0} ports w/ epg`;
-    totals.leafs += summary.leafs || 0;
-    totals.spines += summary.spines || 0;
-    totals.fex += summary.fex || 0;
-    totals.tenants += summary.tenants || 0;
-    totals.vrfs += summary.vrfs || 0;
-    totals.bds += summary.bds || 0;
-    totals.epgs += summary.epgs || 0;
-    totals.contracts += summary.contracts || 0;
-    totals.endpoints += summary.endpoints || 0;
-    totals.ports += ports.total || 0;
-    totals.ports_with_epg += ports.ports_with_epg || 0;
+    if (grid) {
+      const card = document.createElement('button');
+      card.className = 'fabric-summary-card';
+      card.onclick = () => loadFabric(name);
+      card.innerHTML = `
+        <div class="fabric-summary-header">
+          <div>
+            <div class="fabric-summary-title">${name}</div>
+            <div class="fabric-summary-sub">${summary.leafs || 0} leafs · ${summary.spines || 0} spines · ${summary.fex || 0} fex</div>
+          </div>
+          <div class="fabric-summary-pill">View</div>
+        </div>
+        <div class="fabric-summary-metrics">
+          <div><span>Tenants</span><strong>${summary.tenants || 0}</strong></div>
+          <div><span>VRFs</span><strong>${summary.vrfs || 0}</strong></div>
+          <div><span>BDs</span><strong>${summary.bds || 0}</strong></div>
+          <div><span>EPGs</span><strong>${summary.epgs || 0}</strong></div>
+          <div><span>Ports</span><strong>${ports.total || 0}</strong></div>
+          <div><span>Ports w/ EPG</span><strong>${ports.ports_with_epg || 0}</strong></div>
+          <div><span>Endpoints</span><strong>${summary.endpoints || 0}</strong></div>
+          <div><span>Contracts</span><strong>${summary.contracts || 0}</strong></div>
+        </div>
+      `;
+      grid.appendChild(card);
+    }
   }
-  SUMMARY_STATE.all = { summary: totals, ports: { total: totals.ports, ports_with_epg: totals.ports_with_epg } };
-  setSummaryHeader('Capacity Summary', 'Fast, cached rollups across all fabrics. Select a fabric for full detail.');
-  setSummaryCards(totals, { total: totals.ports, ports_with_epg: totals.ports_with_epg });
+  setSummaryHeader('Fabric Summary', 'Key metrics per fabric. Select a fabric for full detail.');
 }
