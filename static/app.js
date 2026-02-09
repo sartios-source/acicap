@@ -142,6 +142,19 @@ function fabricId(name) {
   return (name || '').replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
+function renderUtilRows(rows, keyLabel) {
+  if (!rows || rows.length === 0) {
+    return '<tr><td colspan="5" class="text-muted text-center">No data</td></tr>';
+  }
+  return rows.slice(0, 12).map((row) => {
+    const total = row.total || 0;
+    const up = row.up || 0;
+    const down = row.down || 0;
+    const unknown = row.unknown || 0;
+    return `<tr><td>${row[keyLabel]}</td><td>${total}</td><td>${up}</td><td>${down}</td><td>${unknown}</td></tr>`;
+  }).join('');
+}
+
 async function loadFabricSummaryDetail(name, targetId) {
   const target = document.getElementById(targetId);
   if (!target || target.dataset.loaded === 'true') return;
@@ -227,68 +240,229 @@ async function loadFabric(name) {
   const headroom = data.headroom || {};
   const ports = data.ports || {};
   const limits = data.cisco_limits || {};
+  const tenants = (data.tenants?.rows || []).slice(0, 10);
+  const util = data.port_utilization || {};
+  const spine = data.spine_capacity || {};
+  const headroomDefs = [
+    { key: 'leafs', label: 'Leaf switches' },
+    { key: 'spines', label: 'Spine switches' },
+    { key: 'leafs_by_spine_ports', label: 'Leafs by spine ports' },
+    { key: 'tenants', label: 'Tenants' },
+    { key: 'vrfs', label: 'VRFs' },
+    { key: 'bds', label: 'Bridge domains' },
+    { key: 'epgs', label: 'EPGs' },
+    { key: 'contracts', label: 'Contracts' },
+    { key: 'fex', label: 'FEX' },
+    { key: 'ports', label: 'Physical ports' }
+  ];
+  const headroomRows = headroomDefs.map((item) => {
+    const row = headroom[item.key] || {};
+    const current = row.current ?? 0;
+    const maximum = row.maximum ?? 'n/a';
+    const remaining = row.remaining ?? 'n/a';
+    const pct = row.pct ?? 'n/a';
+    return `<tr><td>${item.label}</td><td>${current}</td><td>${maximum}</td><td>${remaining}</td><td>${pct}%</td></tr>`;
+  }).join('');
+  const tenantRows = tenants.length
+    ? tenants.map((row) => `<tr><td>${row.tenant || ''}</td><td>${row.vrfs || 0}</td><td>${row.bds || 0}</td><td>${row.epgs || 0}</td><td>${row.subnets || 0}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="text-muted text-center">No tenant rollups</td></tr>';
   setSummaryHeader('Fabric Summary', 'Key metrics per fabric. Select a fabric for full detail.');
 
   body.innerHTML = `
-    <div class=\"detail-grid\">
-      <div class=\"detail-block\">
-        <h4>Summary</h4>
-        <div class=\"pill-row\">
-          <span class=\"pill\">Leafs ${summary.leafs || 0}</span>
-          <span class=\"pill\">Spines ${summary.spines || 0}</span>
-          <span class=\"pill\">FEX ${summary.fex || 0}</span>
-          <span class=\"pill\">EPGs ${summary.epgs || 0}</span>
-          <span class=\"pill\">Tenants ${summary.tenants || 0}</span>
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="row g-3">
+          <div class="col-6 col-lg-3">
+            <div class="card metric-card h-100">
+              <div class="card-body">
+                <div class="text-muted small">Leafs</div>
+                <div class="metric-value">${summary.leafs || 0}</div>
+                <div class="text-muted small">Spines ${summary.spines || 0}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="card metric-card h-100">
+              <div class="card-body">
+                <div class="text-muted small">Tenants</div>
+                <div class="metric-value">${summary.tenants || 0}</div>
+                <div class="text-muted small">VRFs ${summary.vrfs || 0}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="card metric-card h-100">
+              <div class="card-body">
+                <div class="text-muted small">EPGs</div>
+                <div class="metric-value">${summary.epgs || 0}</div>
+                <div class="text-muted small">BDs ${summary.bds || 0}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="card metric-card h-100">
+              <div class="card-body">
+                <div class="text-muted small">Ports</div>
+                <div class="metric-value">${ports.total || 0}</div>
+                <div class="text-muted small">Ports w/ EPG ${ports.ports_with_epg || 0}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class=\"detail-block\">
-        <h4>Ports</h4>
-        <div class=\"progress-bar\"><div class=\"progress-fill\" style=\"width:${Math.round(((ports.ports_with_epg||0)/(ports.total||1))*100)}%\"></div></div>
-        <div class=\"progress-meta\">${ports.ports_with_epg || 0} / ${ports.total || 0} ports with EPG</div>
+
+      <div class="col-12">
+        <ul class="nav nav-pills gap-2" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-overview" type="button" role="tab">Overview</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-capacity" type="button" role="tab">Capacity</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-util" type="button" role="tab">Utilization</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-tenants" type="button" role="tab">Tenants</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-actions" type="button" role="tab">Actions</button>
+          </li>
+        </ul>
       </div>
-      <div class=\"detail-block\">
-        <h4>Headroom (Leafs)</h4>
-        <div class=\"limit-grid\">
-          <div>APIC Limit</div><div>${headroom.leafs?.current || 0} / ${headroom.leafs?.maximum || 'n/a'}</div><div>${headroom.leafs?.remaining ?? 'n/a'} left</div>
-          <div>Spine Ports</div><div>${headroom.leafs_by_spine_ports?.current || 0} / ${headroom.leafs_by_spine_ports?.maximum || 'n/a'}</div><div>${headroom.leafs_by_spine_ports?.remaining ?? 'n/a'} left</div>
-        </div>
-      </div>
-      <div class=\"detail-block\">
-        <h4>Cisco Limits (Key)</h4>
-        <div class=\"limit-grid\">
-          <div>Tenants</div><div>${headroom.tenants?.current || 0} / ${headroom.tenants?.maximum || 'n/a'}</div><div>${headroom.tenants?.remaining ?? 'n/a'} left</div>
-          <div>VRFs</div><div>${headroom.vrfs?.current || 0} / ${headroom.vrfs?.maximum || 'n/a'}</div><div>${headroom.vrfs?.remaining ?? 'n/a'} left</div>
-          <div>BDs</div><div>${headroom.bds?.current || 0} / ${headroom.bds?.maximum || 'n/a'}</div><div>${headroom.bds?.remaining ?? 'n/a'} left</div>
-          <div>EPGs</div><div>${headroom.epgs?.current || 0} / ${headroom.epgs?.maximum || 'n/a'}</div><div>${headroom.epgs?.remaining ?? 'n/a'} left</div>
-        </div>
-      </div>
-      <div class=\"detail-block\">
-        <h4>Recommended Spine Card</h4>
-        <div class=\"limit-grid\">
-          <div>Uplink Speed</div><div>${data.spine_capacity?.uplink_speed || 'n/a'}</div><div>Assumed</div>
-          <div>Card Model</div><div>${data.spine_capacity?.linecard_recommendation?.model || 'n/a'}</div><div>${data.spine_capacity?.linecard_recommendation?.speed || ''}</div>
-          <div>Cards Needed</div><div>${data.spine_capacity?.linecard_recommendation?.count ?? 'n/a'}</div><div>For headroom</div>
-        </div>
-      </div>
-      <div class=\"detail-block\">
-        <h4>Actions</h4>
-        <div class=\"panel-actions\">
-          <button class=\"ghost small\" onclick=\"selectFabric('${name}')\">Focus</button>
-          <a class=\"primary small\" href=\"/api/export/excel/${name}\">Export Excel</a>
-          <button class=\"ghost small\" onclick=\"rebuildCache('${name}')\">Rebuild Cache</button>
-          <button class=\"danger small\" onclick=\"deleteFabric('${name}')\">Delete</button>
-        </div>
-        <div class=\"meta-row\" style=\"margin-top:8px;\">
-          <label>Uplinks per leaf</label>
-          <input type=\"number\" min=\"1\" max=\"16\" placeholder=\"auto\" onblur=\"saveUplinks('${name}', this.value)\">
-        </div>
-        <div class=\"meta-row\">
-          <label>Uplink speed</label>
-          <select onchange=\"saveUplinkSpeed('${name}', this.value)\">
-            <option value=\"100G\">100G</option>
-            <option value=\"40G\">40G</option>
-            <option value=\"400G\">400G</option>
-          </select>
+
+      <div class="col-12">
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="tab-overview" role="tabpanel">
+            <div class="row g-3">
+              <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <h6 class="card-title">Key Limits</h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Metric</th><th>Current</th><th>Max</th><th>Remaining</th><th>%</th></tr></thead>
+                        <tbody>${headroomRows}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <h6 class="card-title">Spine Capacity Insight</h6>
+                    <div class="d-flex justify-content-between"><span>Uplink speed</span><span>${spine.uplink_speed || 'n/a'}</span></div>
+                    <div class="d-flex justify-content-between"><span>Leafs supported</span><span>${spine.leafs_supported_by_spines ?? 'n/a'}</span></div>
+                    <div class="d-flex justify-content-between"><span>Remaining leafs</span><span>${spine.remaining_leafs_before_linecards ?? 'n/a'}</span></div>
+                    <div class="d-flex justify-content-between"><span>Card recommendation</span><span>${spine.linecard_recommendation?.model || 'n/a'}</span></div>
+                    <div class="d-flex justify-content-between"><span>Cards needed</span><span>${spine.linecard_recommendation?.count ?? 'n/a'}</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-capacity" role="tabpanel">
+            <div class="card">
+              <div class="card-body">
+                <h6 class="card-title">Fabric Capacity Overview</h6>
+                <div class="progress mb-2" role="progressbar" aria-label="Port utilization">
+                  <div class="progress-bar" style="width:${Math.round(((ports.ports_with_epg || 0) / (ports.total || 1)) * 100)}%"></div>
+                </div>
+                <div class="text-muted small">${ports.ports_with_epg || 0} / ${ports.total || 0} ports with EPG</div>
+                <div class="mt-3">
+                  <div class="text-muted small">APIC release: ${limits.release || 'n/a'}</div>
+                  <div class="text-muted small">APIC cluster size: ${limits.cluster_size || 'n/a'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-util" role="tabpanel">
+            <div class="row g-3">
+              <div class="col-12 col-lg-4">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <h6 class="card-title">Leaf Ports</h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm mb-0">
+                        <thead><tr><th>Leaf</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead>
+                        <tbody>${renderUtilRows(util.leafs || [], 'node')}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-lg-4">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <h6 class="card-title">Spine Ports</h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm mb-0">
+                        <thead><tr><th>Spine</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead>
+                        <tbody>${renderUtilRows(util.spines || [], 'node')}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-lg-4">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <h6 class="card-title">FEX Ports</h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm mb-0">
+                        <thead><tr><th>FEX</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead>
+                        <tbody>${renderUtilRows(util.fex || [], 'fex')}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-tenants" role="tabpanel">
+            <div class="card">
+              <div class="card-body">
+                <h6 class="card-title">Top Tenants by Scale</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0">
+                    <thead><tr><th>Tenant</th><th>VRFs</th><th>BDs</th><th>EPGs</th><th>Subnets</th></tr></thead>
+                    <tbody>${tenantRows}</tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-actions" role="tabpanel">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <button class="btn btn-outline-primary" onclick="selectFabric('${name}')">Focus</button>
+                  <a class="btn btn-primary" href="/api/export/excel/${name}">Export Excel</a>
+                  <button class="btn btn-outline-secondary" onclick="rebuildCache('${name}')">Rebuild Cache</button>
+                  <button class="btn btn-outline-danger" onclick="deleteFabric('${name}')">Delete</button>
+                </div>
+                <div class="row g-2">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small">Uplinks per leaf</label>
+                    <input class="form-control form-control-sm" type="number" min="1" max="16" placeholder="auto" onblur="saveUplinks('${name}', this.value)">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small">Uplink speed</label>
+                    <select class="form-select form-select-sm" onchange="saveUplinkSpeed('${name}', this.value)">
+                      <option value="100G">100G</option>
+                      <option value="40G">40G</option>
+                      <option value="400G">400G</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -473,7 +473,7 @@ button.primary:hover, a.primary:hover {
   margin: 16px 0;
 }
 
-.progress-bar {
+.progress-track {
   height: 10px;
   border-radius: 999px;
   background: #e5eff9;
