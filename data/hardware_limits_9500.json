@@ -5,13 +5,24 @@
     "N9K-C9516": { "slots": 16 }
   },
   "linecards": {
-    "N9K-X9716D-GX": { "spine_ports": 16, "speed": "400G" },
-    "N9K-X9736C-FX3": { "spine_ports": 36, "speed": "100G" },
-    "N9K-X9736C-FX": { "spine_ports": 36, "speed": "100G" },
-    "N9K-X9736C-EX": { "spine_ports": 36, "speed": "100G" },
-    "N9K-X9732C-FX": { "spine_ports": 32, "speed": "100G" },
-    "N9K-X9732C-EX": { "spine_ports": 32, "speed": "100G" },
-    "N9K-X97160YC-EX": { "spine_ports": 4, "speed": "100G" },
-    "N9K-X9788TC-FX": { "spine_ports": 4, "speed": "100G" }
+    "N9K-X9716D-GX": { "spine_ports": 16, "speed": "400G", "aci_spine_supported": true },
+    "N9K-X9736C-FX3": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": true },
+    "N9K-X9736C-FX": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": true },
+    "N9K-X9732C-EX": { "spine_ports": 32, "speed": "100G", "aci_spine_supported": true },
+    "N9K-X9432C-S": { "spine_ports": 32, "speed": "100G", "aci_spine_supported": false },
+    "N9K-X9636C-R": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": false },
+    "N9K-X9636C-RX": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": false },
+    "N9K-X9736PQ": { "spine_ports": 36, "speed": "40G", "aci_spine_supported": true },
+    "N9K-X9636PQ": { "spine_ports": 36, "speed": "40G", "aci_spine_supported": false },
+    "N9K-X9536PQ": { "spine_ports": 36, "speed": "40G", "aci_spine_supported": false },
+    "N9K-X9432PQ": { "spine_ports": 32, "speed": "40G", "aci_spine_supported": false },
+    "N9K-X9732C-FX": { "spine_ports": 32, "speed": "100G", "aci_spine_supported": false },
+    "N9K-X9736C-EX": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": false },
+    "N9K-X97160YC-EX": { "spine_ports": 4, "speed": "100G", "aci_spine_supported": false },
+    "N9K-X9788TC-FX": { "spine_ports": 4, "speed": "100G", "aci_spine_supported": false },
+    "N9K-X9564PX": { "spine_ports": 4, "speed": "40G", "aci_spine_supported": false },
+    "N9K-X9464PX": { "spine_ports": 4, "speed": "40G", "aci_spine_supported": false },
+    "N9K-X9564TX": { "spine_ports": 4, "speed": "40G", "aci_spine_supported": false },
+    "N9K-X9464TX2": { "spine_ports": 4, "speed": "40G", "aci_spine_supported": false }
   }
 }

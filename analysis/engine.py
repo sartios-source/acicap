@@ -3,6 +3,7 @@ from collections import defaultdict, Counter
 import re
 from pathlib import Path
 import json
+import os
 from functools import lru_cache
 
 
@@ -64,6 +65,11 @@ def _extract_interface_id_from_dn(dn: str) -> str:
     if match:
         return match.group(1)
     match = re.search(r"pathep-\[(.+?)\]", dn)
+    return match.group(1) if match else ""
+
+
+def _extract_node_id_from_dn(dn: str) -> str:
+    match = re.search(r"node-(\d+)", dn or "")
     return match.group(1) if match else ""
 
 
@@ -379,7 +385,6 @@ class CapacityAnalyzer:
     def _get_spine_port_capacity(self) -> Dict[str, Any]:
         limits = self._load_hardware_limits()
         linecards = limits.get("linecards", {})
-        fabric_nodes = {n.get("id"): n for n in self._by_type.get("fabricNode", []) if n.get("id")}
         spine_ids = {
             str(n.get("id")) for n in self._by_type.get("fabricNode", [])
             if (n.get("role") or "").lower() == "spine"
@@ -395,15 +400,64 @@ class CapacityAnalyzer:
                 continue
             normalized = model.strip().upper()
             if normalized in linecards:
+                if not linecards[normalized].get("aci_spine_supported", True):
+                    continue
                 ports = int(linecards[normalized].get("spine_ports", 0))
                 per_spine_ports[str(node_id)] += ports
                 per_spine_cards[str(node_id)].append(normalized)
+        if not per_spine_ports:
+            per_spine_ports = defaultdict(int)
+            per_spine_cards = defaultdict(list)
+            for iface in self._by_type.get("ethpmPhysIf", []):
+                dn = iface.get("dn", "")
+                node_id = _extract_node_id_from_dn(dn)
+                if node_id and node_id in spine_ids:
+                    iface_id = _extract_interface_id_from_dn(dn) or iface.get("id", "")
+                    if iface_id:
+                        per_spine_ports[node_id] += 1
         total_ports = sum(per_spine_ports.values())
         return {
             "total_spine_ports": total_ports,
             "per_spine_ports": dict(per_spine_ports),
             "per_spine_cards": dict(per_spine_cards),
         }
+
+    def _infer_uplinks_per_leaf(self, default_value: int) -> int:
+        spine_names = {
+            (n.get("name") or "").lower()
+            for n in self._by_type.get("fabricNode", [])
+            if (n.get("role") or "").lower() == "spine"
+        }
+        leaf_ids = {
+            str(n.get("id")) for n in self._by_type.get("fabricNode", [])
+            if (n.get("role") or "").lower() == "leaf"
+        }
+
+        def is_spine_neighbor(attrs: dict) -> bool:
+            sys_name = (attrs.get("sysName") or "").lower()
+            chassis = (attrs.get("chassisIdV") or "").lower()
+            return any(name and name in sys_name for name in spine_names) or "spine" in sys_name or "spine" in chassis
+
+        leaf_ports = defaultdict(set)
+        for adj in self._by_type.get("lldpAdjEp", []) + self._by_type.get("cdpAdjEp", []):
+            dn = adj.get("dn", "")
+            node_id = _extract_node_id_from_dn(dn)
+            if not node_id or node_id not in leaf_ids:
+                continue
+            if not is_spine_neighbor(adj):
+                continue
+            iface_id = _extract_interface_id_from_dn(dn)
+            if iface_id:
+                leaf_ports[node_id].add(iface_id)
+
+        if not leaf_ports:
+            return default_value
+
+        counts = sorted(len(v) for v in leaf_ports.values() if v)
+        if not counts:
+            return default_value
+        mid = len(counts) // 2
+        return counts[mid] if len(counts) % 2 == 1 else max(1, int(round((counts[mid - 1] + counts[mid]) / 2)))
 
     def analyze(self) -> Dict[str, Any]:
         self._load_data()
@@ -432,7 +486,8 @@ class CapacityAnalyzer:
         per_fabric = limits.get("per_fabric", {})
         per_tenant_epg_limit = per_fabric.get("epgs_per_tenant_multi") if summary["tenants"] > 1 else per_fabric.get("epgs_per_tenant_single")
         max_epg_per_tenant = max((row.get("epgs", 0) for row in tenant_rollups.get("rows", [])), default=0)
-        uplinks_per_leaf = int(self.fabric_data.get("uplinks_per_leaf") or 0) or int(os.environ.get("UPLINKS_PER_LEAF_DEFAULT", "2"))
+        default_uplinks = int(os.environ.get("UPLINKS_PER_LEAF_DEFAULT", "2"))
+        uplinks_per_leaf = int(self.fabric_data.get("uplinks_per_leaf") or 0) or self._infer_uplinks_per_leaf(default_uplinks)
         leafs_supported_by_spines = (spine_capacity["total_spine_ports"] // uplinks_per_leaf) if uplinks_per_leaf else 0
         spine_leaf_headroom = max(leafs_supported_by_spines - summary["leafs"], 0)
         headroom = {

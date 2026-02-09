@@ -136,6 +136,11 @@
                 <a class="primary small" href="{{ url_for('export_excel', fabric_name=item.fabric) }}">Export Excel</a>
                 <button class="danger small" onclick="deleteFabric('{{ item.fabric }}')">Delete</button>
               </div>
+              <div class="meta-row">
+                <label>Uplinks per leaf</label>
+                <input type="number" min="1" max="16" value="{{ item.meta.uplinks_per_leaf or '' }}" placeholder="auto"
+                       onblur="saveUplinks('{{ item.fabric }}', this.value)">
+              </div>
             </div>
           </div>
         </div>

@@ -59,6 +59,16 @@ async function deleteFabric(name) {
   location.reload();
 }
 
+async function saveUplinks(name, value) {
+  const res = await fetch(`/fabrics/${name}/meta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uplinks_per_leaf: value || "" })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) alert(data.error || 'Update failed');
+}
+
 function toggleFabric(name) {
   const panel = document.getElementById(`detail-${name}`);
   if (!panel) return;

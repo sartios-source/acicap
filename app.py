@@ -135,6 +135,27 @@ def delete_fabric(fabric_name):
     return jsonify({"success": True})
 
 
+@app.route("/fabrics/<fabric_name>/meta", methods=["POST"])
+@csrf.exempt
+def update_fabric_meta(fabric_name):
+    fabric_name = validate_fabric_name(fabric_name)
+    data = request.get_json(silent=True) or {}
+    fabric_data = fm.get_fabric_data(fabric_name)
+    description = str(data.get("description", fabric_data.get("description", ""))).strip()
+    uplinks_per_leaf = data.get("uplinks_per_leaf")
+    fabric_data["description"] = description
+    if uplinks_per_leaf is not None:
+        try:
+            if uplinks_per_leaf == "":
+                fabric_data.pop("uplinks_per_leaf", None)
+            else:
+                fabric_data["uplinks_per_leaf"] = int(uplinks_per_leaf)
+        except Exception:
+            return jsonify({"error": "uplinks_per_leaf must be an integer"}), 400
+    fm.save_fabric_metadata(fabric_name, fabric_data)
+    ANALYZER_CACHE.pop(fabric_name, None)
+    return jsonify({"success": True})
+
 @app.route("/fabrics/<fabric_name>/select", methods=["POST"])
 @csrf.exempt
 def select_fabric(fabric_name):
