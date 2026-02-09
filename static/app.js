@@ -261,29 +261,37 @@ async function loadSummaries() {
     btn.querySelector('[data-fabric-metric="epgs"]').textContent = `${summary.epgs || 0} epgs`;
     btn.querySelector('[data-fabric-metric="ports"]').textContent = `${ports.ports_with_epg || 0} ports w/ epg`;
     if (grid) {
-      const card = document.createElement('button');
-      card.className = 'fabric-summary-card';
+      const col = document.createElement('div');
+      col.className = 'col-12 col-md-6 col-xl-4';
+      const card = document.createElement('div');
+      card.className = 'card fabric-summary-card h-100';
+      card.role = 'button';
+      card.tabIndex = 0;
       card.onclick = () => loadFabric(name);
+      card.onkeypress = (evt) => { if (evt.key === 'Enter') loadFabric(name); };
       card.innerHTML = `
-        <div class="fabric-summary-header">
-          <div>
-            <div class="fabric-summary-title">${name}</div>
-            <div class="fabric-summary-sub">${summary.leafs || 0} leafs · ${summary.spines || 0} spines · ${summary.fex || 0} fex</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <h5 class="card-title mb-1">${name}</h5>
+              <div class="text-muted small">${summary.leafs || 0} leafs - ${summary.spines || 0} spines - ${summary.fex || 0} fex</div>
+            </div>
+            <span class="badge text-bg-primary">View</span>
           </div>
-          <div class="fabric-summary-pill">View</div>
-        </div>
-        <div class="fabric-summary-metrics">
-          <div><span>Tenants</span><strong>${summary.tenants || 0}</strong></div>
-          <div><span>VRFs</span><strong>${summary.vrfs || 0}</strong></div>
-          <div><span>BDs</span><strong>${summary.bds || 0}</strong></div>
-          <div><span>EPGs</span><strong>${summary.epgs || 0}</strong></div>
-          <div><span>Ports</span><strong>${ports.total || 0}</strong></div>
-          <div><span>Ports w/ EPG</span><strong>${ports.ports_with_epg || 0}</strong></div>
-          <div><span>Endpoints</span><strong>${summary.endpoints || 0}</strong></div>
-          <div><span>Contracts</span><strong>${summary.contracts || 0}</strong></div>
+          <div class="row g-2 fabric-summary-metrics">
+            <div class="col-6"><div class="text-muted small">Tenants</div><div class="fw-semibold">${summary.tenants || 0}</div></div>
+            <div class="col-6"><div class="text-muted small">VRFs</div><div class="fw-semibold">${summary.vrfs || 0}</div></div>
+            <div class="col-6"><div class="text-muted small">BDs</div><div class="fw-semibold">${summary.bds || 0}</div></div>
+            <div class="col-6"><div class="text-muted small">EPGs</div><div class="fw-semibold">${summary.epgs || 0}</div></div>
+            <div class="col-6"><div class="text-muted small">Ports</div><div class="fw-semibold">${ports.total || 0}</div></div>
+            <div class="col-6"><div class="text-muted small">Ports w/ EPG</div><div class="fw-semibold">${ports.ports_with_epg || 0}</div></div>
+            <div class="col-6"><div class="text-muted small">Endpoints</div><div class="fw-semibold">${summary.endpoints || 0}</div></div>
+            <div class="col-6"><div class="text-muted small">Contracts</div><div class="fw-semibold">${summary.contracts || 0}</div></div>
+          </div>
         </div>
       `;
-      grid.appendChild(card);
+      col.appendChild(card);
+      grid.appendChild(col);
     }
   }
   setSummaryHeader('Fabric Summary', 'Key metrics per fabric. Select a fabric for full detail.');
