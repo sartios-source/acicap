@@ -239,10 +239,11 @@ async function loadSummaries() {
     ports_with_epg: 0
   };
   const buttons = document.querySelectorAll('.fabric-item');
+  const res = await fetch('/api/summary');
+  const all = await res.json();
   for (const btn of buttons) {
     const name = btn.dataset.fabric;
-    const res = await fetch(`/api/summary/${name}`);
-    const data = await res.json();
+    const data = all[name] || {};
     const summary = data.summary || {};
     const ports = data.ports || {};
     btn.querySelector('[data-fabric-metric="leafs"]').textContent = `${summary.leafs || 0} leafs`;

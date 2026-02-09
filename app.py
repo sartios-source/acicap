@@ -112,6 +112,18 @@ def api_summary(fabric_name):
     return jsonify(_get_cached_summary(fabric_name))
 
 
+@app.route("/api/summary")
+def api_summary_all():
+    results = {}
+    for fabric in fm.list_fabrics():
+        name = fabric["name"]
+        try:
+            results[name] = _get_cached_summary(name)
+        except Exception as exc:
+            results[name] = {"error": str(exc), "summary": {}, "ports": {}}
+    return jsonify(results)
+
+
 @app.route("/upload_page")
 def upload_page():
     current_fabric = session.get("current_fabric")
