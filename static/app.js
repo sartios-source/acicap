@@ -59,6 +59,15 @@ async function deleteFabric(name) {
   location.reload();
 }
 
+async function resetFabrics() {
+  const ok = confirm('Reset all fabrics? This deletes all datasets.');
+  if (!ok) return;
+  const res = await fetch('/fabrics/reset', { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) return alert(data.error || 'Reset failed');
+  location.reload();
+}
+
 async function saveUplinks(name, value) {
   const res = await fetch(`/fabrics/${name}/meta`, {
     method: 'POST',

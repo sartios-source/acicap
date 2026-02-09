@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+ï»¿{% extends "base.html" %}
 
 {% block title %}ACI Capacity Atlas{% endblock %}
 
@@ -14,13 +14,14 @@
     </div>
     <div class="sidebar-actions">
       <a class="ghost small" href="{{ url_for('upload_page') }}">Upload Data</a>
+      <button class="danger small" onclick="resetFabrics()">Reset All</button>
     </div>
     <input id="fabric-filter" class="sidebar-filter" placeholder="Filter fabrics..." oninput="filterFabrics()">
     <div class="fabric-list" id="fabric-list">
       {% for item in fabric_summaries %}
       <button class="fabric-item" data-fabric="{{ item.fabric }}" onclick="loadFabric('{{ item.fabric }}')">
         <div class="fabric-name">{{ item.fabric }}</div>
-        <div class="fabric-meta">{{ item.meta.dataset_count }} datasets · {{ item.meta.modified }}</div>
+        <div class="fabric-meta">{{ item.meta.dataset_count }} datasets Â· {{ item.meta.modified }}</div>
         <div class="fabric-mini">
           <span>{{ item.summary.summary.leafs }} leafs</span>
           <span>{{ item.summary.summary.epgs }} epgs</span>
@@ -53,7 +54,7 @@
       <div class="summary-card">
         <div class="metric-title">EPGs</div>
         <div class="metric-value" data-count="{{ totals.epgs }}">0</div>
-        <div class="metric-sub">BDs {{ totals.bds }} · VRFs {{ totals.vrfs }}</div>
+        <div class="metric-sub">BDs {{ totals.bds }} Â· VRFs {{ totals.vrfs }}</div>
       </div>
       <div class="summary-card">
         <div class="metric-title">Tenants</div>

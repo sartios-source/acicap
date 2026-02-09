@@ -161,6 +161,22 @@ def delete_fabric(fabric_name):
     return jsonify({"success": True})
 
 
+@app.route("/fabrics/reset", methods=["POST"])
+@csrf.exempt
+def reset_fabrics():
+    fabrics = [f["name"] for f in fm.list_fabrics()]
+    for name in fabrics:
+        try:
+            fm.delete_fabric(name)
+        except Exception:
+            continue
+        ANALYZER_CACHE.pop(name, None)
+        cache.delete(f"summary:{name}")
+        cache.delete(f"analysis:{name}")
+    session.pop("current_fabric", None)
+    return jsonify({"success": True, "deleted": len(fabrics)})
+
+
 @app.route("/fabrics/<fabric_name>/meta", methods=["POST"])
 @csrf.exempt
 def update_fabric_meta(fabric_name):
