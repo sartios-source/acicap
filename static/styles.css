@@ -169,8 +169,8 @@ body {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .summary-card {
@@ -178,6 +178,10 @@ body {
   border-radius: 16px;
   background: #fff;
   border: 1px solid #e4eef9;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .detail-panel {

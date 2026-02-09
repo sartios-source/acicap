@@ -131,11 +131,42 @@ function filterFabrics() {
   });
 }
 
+const SUMMARY_STATE = {
+  all: null
+};
+
+function setSummaryHeader(title, subtitle) {
+  const titleEl = document.getElementById('summary-title');
+  const subEl = document.getElementById('summary-sub');
+  if (titleEl) titleEl.textContent = title;
+  if (subEl) subEl.textContent = subtitle;
+}
+
+function setSummaryCards(summary, ports) {
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('total-leafs', summary.leafs || 0);
+  setText('total-spines', `Spines ${summary.spines || 0}`);
+  setText('total-ports', ports.total || 0);
+  setText('total-ports-epg', `Ports w/ EPG ${ports.ports_with_epg || 0}`);
+  setText('total-tenants', summary.tenants || 0);
+  setText('total-vrfs', `VRFs ${summary.vrfs || 0}`);
+  setText('total-bds', summary.bds || 0);
+  setText('total-bd-vrf', `BDs ${summary.bds || 0} - VRFs ${summary.vrfs || 0}`);
+  setText('total-epgs', summary.epgs || 0);
+  setText('total-contracts', `Contracts ${summary.contracts || 0}`);
+  setText('total-endpoints', summary.endpoints || 0);
+  setText('total-fex', `FEX ${summary.fex || 0}`);
+}
+
 async function loadFabric(name) {
   const title = document.getElementById('detail-title');
   const meta = document.getElementById('detail-meta');
   const body = document.getElementById('detail-body');
   if (name === 'all') {
+    if (SUMMARY_STATE.all) {
+      setSummaryHeader('Capacity Summary', 'Fast, cached rollups across all fabrics. Select a fabric for full detail.');
+      setSummaryCards(SUMMARY_STATE.all.summary, SUMMARY_STATE.all.ports);
+    }
     title.textContent = 'All Fabrics';
     meta.textContent = 'Summary only';
     body.innerHTML = '<div class=\"empty\">Select a fabric to view full details.</div>';
@@ -159,6 +190,8 @@ async function loadFabric(name) {
   const headroom = data.headroom || {};
   const ports = data.ports || {};
   const limits = data.cisco_limits || {};
+  setSummaryHeader(`${name} Summary`, 'Selected fabric view');
+  setSummaryCards(summary, ports);
 
   body.innerHTML = `
     <div class=\"detail-grid\">
@@ -261,21 +294,17 @@ async function loadSummaries() {
     btn.querySelector('[data-fabric-metric="ports"]').textContent = `${ports.ports_with_epg || 0} ports w/ epg`;
     totals.leafs += summary.leafs || 0;
     totals.spines += summary.spines || 0;
+    totals.fex += summary.fex || 0;
     totals.tenants += summary.tenants || 0;
     totals.vrfs += summary.vrfs || 0;
     totals.bds += summary.bds || 0;
     totals.epgs += summary.epgs || 0;
+    totals.contracts += summary.contracts || 0;
     totals.endpoints += summary.endpoints || 0;
     totals.ports += ports.total || 0;
     totals.ports_with_epg += ports.ports_with_epg || 0;
   }
-  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-  setText('total-leafs', totals.leafs);
-  setText('total-spines', `Spines ${totals.spines}`);
-  setText('total-epgs', totals.epgs);
-  setText('total-bd-vrf', `BDs ${totals.bds} - VRFs ${totals.vrfs}`);
-  setText('total-tenants', totals.tenants);
-  setText('total-endpoints', `Endpoints ${totals.endpoints}`);
-  setText('total-ports', totals.ports);
-  setText('total-ports-epg', `Ports w/ EPG ${totals.ports_with_epg}`);
+  SUMMARY_STATE.all = { summary: totals, ports: { total: totals.ports, ports_with_epg: totals.ports_with_epg } };
+  setSummaryHeader('Capacity Summary', 'Fast, cached rollups across all fabrics. Select a fabric for full detail.');
+  setSummaryCards(totals, { total: totals.ports, ports_with_epg: totals.ports_with_epg });
 }
