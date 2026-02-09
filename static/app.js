@@ -138,6 +138,66 @@ function setSummaryHeader(title, subtitle) {
   if (subEl) subEl.textContent = subtitle;
 }
 
+function fabricId(name) {
+  return (name || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+async function loadFabricSummaryDetail(name, targetId) {
+  const target = document.getElementById(targetId);
+  if (!target || target.dataset.loaded === 'true') return;
+  target.innerHTML = '<div class="text-center text-muted py-3">Loading details...</div>';
+  const res = await fetch(`/api/analysis/${name}`);
+  const data = await res.json();
+  if (data.error) {
+    target.innerHTML = `<div class="text-danger py-2">${data.error}</div>`;
+    return;
+  }
+  const headroom = data.headroom || {};
+  const ports = data.ports || {};
+  const completeness = data.completeness || {};
+  const spine = data.spine_capacity || {};
+  const pct = Math.round(((ports.ports_with_epg || 0) / (ports.total || 1)) * 100);
+  target.innerHTML = `
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <div class="border rounded-3 p-3 bg-light">
+          <div class="fw-semibold mb-2">Headroom</div>
+          <div class="d-flex justify-content-between"><span>Tenants</span><span>${headroom.tenants?.current || 0} / ${headroom.tenants?.maximum || 'n/a'}</span></div>
+          <div class="d-flex justify-content-between"><span>VRFs</span><span>${headroom.vrfs?.current || 0} / ${headroom.vrfs?.maximum || 'n/a'}</span></div>
+          <div class="d-flex justify-content-between"><span>BDs</span><span>${headroom.bds?.current || 0} / ${headroom.bds?.maximum || 'n/a'}</span></div>
+          <div class="d-flex justify-content-between"><span>EPGs</span><span>${headroom.epgs?.current || 0} / ${headroom.epgs?.maximum || 'n/a'}</span></div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="border rounded-3 p-3 bg-light">
+          <div class="fw-semibold mb-2">Spine Capacity</div>
+          <div class="d-flex justify-content-between"><span>Leafs Supported</span><span>${spine.leafs_supported_by_spines ?? 'n/a'}</span></div>
+          <div class="d-flex justify-content-between"><span>Remaining Leafs</span><span>${spine.remaining_leafs_before_linecards ?? 'n/a'}</span></div>
+          <div class="d-flex justify-content-between"><span>Uplink Speed</span><span>${spine.uplink_speed || 'n/a'}</span></div>
+          <div class="d-flex justify-content-between"><span>Recommended Card</span><span>${spine.linecard_recommendation?.model || 'n/a'}</span></div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="border rounded-3 p-3 bg-light">
+          <div class="fw-semibold mb-2">Ports</div>
+          <div class="progress" role="progressbar" aria-label="Port utilization">
+            <div class="progress-bar" style="width:${pct}%"></div>
+          </div>
+          <div class="text-muted small mt-2">${ports.ports_with_epg || 0} / ${ports.total || 0} ports with EPG</div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="border rounded-3 p-3 bg-light">
+          <div class="fw-semibold mb-2">Dataset Completeness</div>
+          <div class="d-flex justify-content-between"><span>Score</span><span>${completeness.completeness_score ?? 'n/a'}%</span></div>
+          <div class="text-muted small">Missing required: ${(completeness.missing_required || []).join(', ') || 'none'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  target.dataset.loaded = 'true';
+}
+
 async function loadFabric(name) {
   const title = document.getElementById('detail-title');
   const meta = document.getElementById('detail-meta');
@@ -269,6 +329,8 @@ async function loadSummaries() {
       card.tabIndex = 0;
       card.onclick = () => loadFabric(name);
       card.onkeypress = (evt) => { if (evt.key === 'Enter') loadFabric(name); };
+      const safeId = fabricId(name);
+      const detailsId = `fabric-details-${safeId}`;
       card.innerHTML = `
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start mb-3">
@@ -276,7 +338,7 @@ async function loadSummaries() {
               <h5 class="card-title mb-1">${name}</h5>
               <div class="text-muted small">${summary.leafs || 0} leafs - ${summary.spines || 0} spines - ${summary.fex || 0} fex</div>
             </div>
-            <span class="badge text-bg-primary">View</span>
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#${detailsId}" aria-expanded="false" aria-controls="${detailsId}" onclick="loadFabricSummaryDetail('${name}', '${detailsId}')">Details</button>
           </div>
           <div class="row g-2 fabric-summary-metrics">
             <div class="col-6"><div class="text-muted small">Tenants</div><div class="fw-semibold">${summary.tenants || 0}</div></div>
@@ -288,6 +350,7 @@ async function loadSummaries() {
             <div class="col-6"><div class="text-muted small">Endpoints</div><div class="fw-semibold">${summary.endpoints || 0}</div></div>
             <div class="col-6"><div class="text-muted small">Contracts</div><div class="fw-semibold">${summary.contracts || 0}</div></div>
           </div>
+          <div class="collapse mt-3" id="${detailsId}"></div>
         </div>
       `;
       col.appendChild(card);
