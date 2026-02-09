@@ -260,6 +260,43 @@ def reset_fabrics():
     return jsonify({"success": True, "deleted": len(fabrics)})
 
 
+@app.route("/fabrics/<fabric_name>/rebuild-cache", methods=["POST"])
+@csrf.exempt
+def rebuild_fabric_cache(fabric_name):
+    fabric_name = validate_fabric_name(fabric_name)
+    fabric_data = fm.get_fabric_data(fabric_name)
+    cache_path = _object_cache_path(fabric_name)
+    if cache_path.exists():
+        try:
+            cache_path.unlink()
+        except Exception:
+            pass
+    try:
+        # Full rebuild from datasets
+        for dataset in fabric_data.get("datasets", []):
+            if dataset.get("type") != "aci":
+                continue
+            path_value = dataset.get("path")
+            if not path_value:
+                continue
+            path = Path(path_value)
+            if not path.exists():
+                continue
+            parsed = parsers.parse_aci(path.read_text(encoding="utf-8", errors="ignore"), "json")
+            _merge_objects(fabric_name, parsed.get("objects", []), fabric_data.get("modified", ""))
+        cache.delete(f"summary:{fabric_name}")
+        cache.delete(f"analysis:{fabric_name}")
+        summary_path = DATA_DIR / fabric_name / "summary.json"
+        if summary_path.exists():
+            try:
+                summary_path.unlink()
+            except Exception:
+                pass
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+    return jsonify({"success": True})
+
+
 @app.route("/fabrics/<fabric_name>/meta", methods=["POST"])
 @csrf.exempt
 def update_fabric_meta(fabric_name):

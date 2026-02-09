@@ -68,6 +68,15 @@ async function resetFabrics() {
   location.reload();
 }
 
+async function rebuildCache(name) {
+  const ok = confirm(`Rebuild cache for "${name}"?`);
+  if (!ok) return;
+  const res = await fetch(`/fabrics/${name}/rebuild-cache`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) return alert(data.error || 'Rebuild failed');
+  alert('Cache rebuilt');
+}
+
 async function saveUplinks(name, value) {
   const res = await fetch(`/fabrics/${name}/meta`, {
     method: 'POST',
@@ -144,7 +153,7 @@ async function loadFabric(name) {
     return;
   }
   title.textContent = name;
-  meta.textContent = `APIC ${data.cisco_limits?.cluster_size || 'n/a'}-node · ${data.cisco_limits?.release || 'n/a'}`;
+  meta.textContent = `APIC ${data.cisco_limits?.cluster_size || 'n/a'}-node - ${data.cisco_limits?.release || 'n/a'}`;
 
   const summary = data.summary || {};
   const headroom = data.headroom || {};
@@ -197,6 +206,7 @@ async function loadFabric(name) {
         <div class=\"panel-actions\">
           <button class=\"ghost small\" onclick=\"selectFabric('${name}')\">Focus</button>
           <a class=\"primary small\" href=\"/api/export/excel/${name}\">Export Excel</a>
+          <button class=\"ghost small\" onclick=\"rebuildCache('${name}')\">Rebuild Cache</button>
           <button class=\"danger small\" onclick=\"deleteFabric('${name}')\">Delete</button>
         </div>
         <div class=\"meta-row\" style=\"margin-top:8px;\">
@@ -263,7 +273,7 @@ async function loadSummaries() {
   setText('total-leafs', totals.leafs);
   setText('total-spines', `Spines ${totals.spines}`);
   setText('total-epgs', totals.epgs);
-  setText('total-bd-vrf', `BDs ${totals.bds} · VRFs ${totals.vrfs}`);
+  setText('total-bd-vrf', `BDs ${totals.bds} - VRFs ${totals.vrfs}`);
   setText('total-tenants', totals.tenants);
   setText('total-endpoints', `Endpoints ${totals.endpoints}`);
   setText('total-ports', totals.ports);
