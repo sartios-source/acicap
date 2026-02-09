@@ -3,276 +3,83 @@
 {% block title %}ACI Capacity Atlas{% endblock %}
 
 {% block content %}
-<section class="hero">
-  <div class="hero-content">
-    <h1>Enterprise ACI Scalability Atlas</h1>
-    <p>Unified, multi-fabric capacity intelligence with Barclays-styled analytics and offline collection support.</p>
-    <div class="hero-actions">
-      <button class="primary" onclick="openFabricModal()">Create Fabric</button>
-      <a class="ghost" href="{{ url_for('upload_page') }}">Upload Data</a>
-    </div>
-  </div>
-  <div class="hero-orb">
-    <div class="orb-ring"></div>
-    <div class="orb-core"></div>
-  </div>
-</section>
-
-<section class="panel metrics-grid">
-    <div class="metric-card">
-      <div class="metric-title">Total Leafs</div>
-      <div class="metric-value" data-count="{{ totals.leafs }}">0</div>
-      <div class="metric-sub">Spines: {{ totals.spines }}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">Total FEX Devices</div>
-      <div class="metric-value" data-count="{{ totals.fex }}">0</div>
-      <div class="metric-sub">Tenants: {{ totals.tenants }}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">Total EPGs</div>
-      <div class="metric-value" data-count="{{ totals.epgs }}">0</div>
-      <div class="metric-sub">BDs: {{ totals.bds }} · VRFs: {{ totals.vrfs }}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">Ports</div>
-      <div class="metric-value" data-count="{{ totals.ports }}">0</div>
-      <div class="metric-sub">Ports w/ EPG: {{ totals.ports_with_epg }}</div>
-    </div>
-  </section>
-
-  <section class="panel fabric-gallery">
-    <div class="panel-header">
-      <h3>All Fabrics</h3>
-      <div class="panel-actions">
-        <input id="fabric-filter" placeholder="Filter fabrics..." oninput="filterFabrics()">
-        <button class="ghost" onclick="expandAll(true)">Expand All</button>
-        <button class="ghost" onclick="expandAll(false)">Collapse All</button>
+<section class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div>
+        <div class="sidebar-title">Fabrics</div>
+        <div class="sidebar-sub">Manage & browse</div>
       </div>
+      <button class="primary small" onclick="openFabricModal()">New</button>
     </div>
-    <div class="fabric-grid" id="fabric-grid">
-      {% for item in fabric_views %}
-      <div class="fabric-card" data-fabric="{{ item.fabric }}">
-        <div class="fabric-card-header">
-          <div>
-            <div class="fabric-name">{{ item.fabric }}</div>
-            <div class="fabric-meta">{{ item.meta.dataset_count }} datasets · {{ item.meta.modified }}</div>
-          </div>
-          <button class="ghost small" onclick="toggleFabric('{{ item.fabric }}')">Details</button>
+    <div class="sidebar-actions">
+      <a class="ghost small" href="{{ url_for('upload_page') }}">Upload Data</a>
+    </div>
+    <input id="fabric-filter" class="sidebar-filter" placeholder="Filter fabrics..." oninput="filterFabrics()">
+    <div class="fabric-list" id="fabric-list">
+      {% for item in fabric_summaries %}
+      <button class="fabric-item" data-fabric="{{ item.fabric }}" onclick="loadFabric('{{ item.fabric }}')">
+        <div class="fabric-name">{{ item.fabric }}</div>
+        <div class="fabric-meta">{{ item.meta.dataset_count }} datasets � {{ item.meta.modified }}</div>
+        <div class="fabric-mini">
+          <span>{{ item.summary.summary.leafs }} leafs</span>
+          <span>{{ item.summary.summary.epgs }} epgs</span>
+          <span>{{ item.summary.ports.ports_with_epg }} ports w/ epg</span>
         </div>
-        <div class="fabric-card-metrics">
-          <div>
-            <div class="stat-value" data-count="{{ item.analysis.summary.leafs }}">0</div>
-            <div class="stat-label">Leafs</div>
-          </div>
-          <div>
-            <div class="stat-value" data-count="{{ item.analysis.summary.epgs }}">0</div>
-            <div class="stat-label">EPGs</div>
-          </div>
-          <div>
-            <div class="stat-value" data-count="{{ item.analysis.ports.ports_with_epg }}">0</div>
-            <div class="stat-label">Ports w/ EPG</div>
-          </div>
-          <div>
-            <div class="stat-value" data-count="{{ item.analysis.l3out.border_leaf_count }}">0</div>
-            <div class="stat-label">Border Leafs</div>
-          </div>
-        </div>
-        <div class="fabric-card-detail hidden" id="detail-{{ item.fabric }}">
-          <div class="detail-grid">
-            <div class="detail-block">
-              <h4>Port Utilisation</h4>
-              <div class="progress-bar">
-                <div class="progress-fill" data-progress="{{ (item.analysis.ports.ports_with_epg / (item.analysis.ports.total or 1) * 100) | round(1) }}"></div>
-              </div>
-              <div class="progress-meta">
-                {{ item.analysis.ports.ports_with_epg }} / {{ item.analysis.ports.total }} ports
-              </div>
-            </div>
-            <div class="detail-block">
-              <h4>Tenant Scale</h4>
-              <div class="pill-row">
-                <span class="pill">VRFs {{ item.analysis.summary.vrfs }}</span>
-                <span class="pill">BDs {{ item.analysis.summary.bds }}</span>
-                <span class="pill">EPGs {{ item.analysis.summary.epgs }}</span>
-              </div>
-            </div>
-            <div class="detail-block">
-              <h4>Completeness</h4>
-              <div class="pill-row">
-                <span class="pill {{ 'success' if not item.analysis.completeness.missing_required else 'danger' }}">
-                  {{ item.analysis.completeness.completeness_score }}%
-                </span>
-              </div>
-            </div>
-            <div class="detail-block">
-              <h4>Cisco Limits</h4>
-              <div class="limit-meta">
-                {% set limits = item.analysis.get('cisco_limits', {}) %}
-                Release {{ limits.get('release', 'n/a') }} · APIC {{ limits.get('cluster_size', 'n/a') }}-node
-              </div>
-              <div class="limit-grid">
-                <div>Leafs</div><div>{{ item.analysis.headroom.leafs.current }} / {{ item.analysis.headroom.leafs.maximum }}</div><div>{{ item.analysis.headroom.leafs.remaining }} left</div>
-                <div>Spines</div><div>{{ item.analysis.headroom.spines.current }} / {{ item.analysis.headroom.spines.maximum }}</div><div>{{ item.analysis.headroom.spines.remaining }} left</div>
-                <div>Leafs by Spine Ports</div><div>{{ item.analysis.headroom.leafs_by_spine_ports.current }} / {{ item.analysis.headroom.leafs_by_spine_ports.maximum }}</div><div>{{ item.analysis.headroom.leafs_by_spine_ports.remaining }} left</div>
-                <div>Tenants</div><div>{{ item.analysis.headroom.tenants.current }} / {{ item.analysis.headroom.tenants.maximum }}</div><div>{{ item.analysis.headroom.tenants.remaining }} left</div>
-                <div>VRFs</div><div>{{ item.analysis.headroom.vrfs.current }} / {{ item.analysis.headroom.vrfs.maximum }}</div><div>{{ item.analysis.headroom.vrfs.remaining }} left</div>
-                <div>BDs</div><div>{{ item.analysis.headroom.bds.current }} / {{ item.analysis.headroom.bds.maximum }}</div><div>{{ item.analysis.headroom.bds.remaining }} left</div>
-                <div>EPGs</div><div>{{ item.analysis.headroom.epgs.current }} / {{ item.analysis.headroom.epgs.maximum }}</div><div>{{ item.analysis.headroom.epgs.remaining }} left</div>
-                <div>EPGs / Tenant</div><div>{{ item.analysis.headroom.epgs_per_tenant.current }} / {{ item.analysis.headroom.epgs_per_tenant.maximum }}</div><div>{{ item.analysis.headroom.epgs_per_tenant.remaining }} left</div>
-                <div>Contracts</div><div>{{ item.analysis.headroom.contracts.current }} / {{ item.analysis.headroom.contracts.maximum }}</div><div>{{ item.analysis.headroom.contracts.remaining }} left</div>
-                <div>FEX</div><div>{{ item.analysis.headroom.fex.current }} / {{ item.analysis.headroom.fex.maximum }}</div><div>{{ item.analysis.headroom.fex.remaining }} left</div>
-                <div>Ports</div><div>{{ item.analysis.headroom.ports.current }} / {{ item.analysis.headroom.ports.maximum }}</div><div>{{ item.analysis.headroom.ports.remaining }} left</div>
-              </div>
-              <div class="limit-meta" style="margin-top:8px;">
-                Uplinks per leaf (assumed): {{ item.analysis.spine_capacity.uplinks_per_leaf }} ·
-                Spine ports: {{ item.analysis.spine_capacity.total_spine_ports }} ·
-                Remaining leafs before linecards: {{ item.analysis.spine_capacity.remaining_leafs_before_linecards }}
-              </div>
-            </div>
-            <div class="detail-block">
-              <h4>Additional Cisco Limits</h4>
-              {% set per_fabric = item.analysis.cisco_limits.get('per_fabric', {}) %}
-              {% set other = item.analysis.cisco_limits.get('other_limits', {}) %}
-              {% set vmm = other.get('vmm', {}) %}
-              {% set l47 = other.get('l4_l7', {}) %}
-              {% set netflow = other.get('netflow', {}) %}
-              <div class="limit-grid">
-                <div>Endpoints/Leaf</div><div>{{ per_fabric.get('endpoints_per_leaf_default', 'n/a') }}</div><div>Default profile</div>
-                <div>Endpoints/Leaf (Dual Stack)</div><div>{{ per_fabric.get('endpoints_per_leaf_high_dual_stack', 'n/a') }}</div><div>High DS</div>
-                <div>Ports x VLANs</div><div>{{ per_fabric.get('ports_x_vlans', 'n/a') }}</div><div>Max</div>
-                <div>Static Bindings</div><div>{{ per_fabric.get('static_port_bindings', 'n/a') }}</div><div>Max</div>
-                <div>L3Outs/Fabric</div><div>{{ per_fabric.get('l3outs_per_fabric_lse', 'n/a') }}</div><div>LSE</div>
-                <div>Ext EPGs/Fabric</div><div>{{ per_fabric.get('external_epgs_per_fabric_lse', 'n/a') }}</div><div>LSE</div>
-                <div>PC/vPC per Leaf</div><div>{{ per_fabric.get('pc_vpc_per_leaf', 'n/a') }}</div><div>Max</div>
-              </div>
-              <div class="limit-meta" style="margin-top:8px;">
-                VMM: {{ vmm.get('epgs_all_scvmm_domains', 'n/a') }} EPGs all domains ·
-                L4-7: {{ l47.get('logical_device_clusters', 'n/a') }} device clusters ·
-                NetFlow: {{ netflow.get('records_per_collect_interval', 'n/a') }} records
-              </div>
-            </div>
-            <div class="detail-block">
-              <h4>Actions</h4>
-              <div class="panel-actions">
-                <button class="ghost small" onclick="selectFabric('{{ item.fabric }}')">Focus</button>
-                <a class="primary small" href="{{ url_for('export_excel', fabric_name=item.fabric) }}">Export Excel</a>
-                <button class="danger small" onclick="deleteFabric('{{ item.fabric }}')">Delete</button>
-              </div>
-              <div class="meta-row">
-                <label>Uplinks per leaf</label>
-                <input type="number" min="1" max="16" value="{{ item.meta.uplinks_per_leaf or '' }}" placeholder="auto"
-                       onblur="saveUplinks('{{ item.fabric }}', this.value)">
-              </div>
-              <div class="meta-row">
-                <label>Scale profile</label>
-                <select onchange="saveScaleProfile('{{ item.fabric }}', this.value)">
-                  <option value="LSE2" {% if item.analysis.scale_profile == 'LSE2' %}selected{% endif %}>LSE2</option>
-                  <option value="LSE" {% if item.analysis.scale_profile == 'LSE' %}selected{% endif %}>LSE</option>
-                  <option value="ALE" {% if item.analysis.scale_profile == 'ALE' %}selected{% endif %}>ALE</option>
-                </select>
-              </div>
-              <div class="meta-row">
-                <label>Endpoint profile</label>
-                <select onchange="saveEndpointProfile('{{ item.fabric }}', this.value)">
-                  <option value="default" {% if item.analysis.endpoint_profile == 'default' %}selected{% endif %}>Default</option>
-                  <option value="high_dual_stack" {% if item.analysis.endpoint_profile == 'high_dual_stack' %}selected{% endif %}>High Dual Stack</option>
-                  <option value="high_lpm" {% if item.analysis.endpoint_profile == 'high_lpm' %}selected{% endif %}>High LPM</option>
-                  <option value="high_policy" {% if item.analysis.endpoint_profile == 'high_policy' %}selected{% endif %}>High Policy</option>
-                </select>
-              </div>
-            </div>
-            <div class="detail-block">
-              <h4>Port Utilization Drilldown</h4>
-              <div class="drill-grid">
-                <div>
-                  <div class="drill-title">Leafs</div>
-                  <div class="table compact">
-                    <div class="table-row head">
-                      <div>Leaf</div><div>Total</div><div>Up</div><div>Down</div>
-                    </div>
-                    {% for row in item.analysis.port_utilization.leafs[:8] %}
-                    <div class="table-row">
-                      <div>{{ row.node }}</div><div>{{ row.total }}</div><div>{{ row.up }}</div><div>{{ row.down }}</div>
-                    </div>
-                    {% else %}
-                    <div class="table-row empty">No leaf port data</div>
-                    {% endfor %}
-                  </div>
-                </div>
-                <div>
-                  <div class="drill-title">FEX</div>
-                  <div class="table compact">
-                    <div class="table-row head">
-                      <div>FEX</div><div>Total</div><div>Up</div><div>Down</div>
-                    </div>
-                    {% for row in item.analysis.port_utilization.fex[:8] %}
-                    <div class="table-row">
-                      <div>{{ row.fex }}</div><div>{{ row.total }}</div><div>{{ row.up }}</div><div>{{ row.down }}</div>
-                    </div>
-                    {% else %}
-                    <div class="table-row empty">No FEX port data</div>
-                    {% endfor %}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      </button>
       {% else %}
-        <div class="empty">No fabrics yet. Create one to get started.</div>
+      <div class="empty">No fabrics yet.</div>
       {% endfor %}
     </div>
-  </section>
+  </aside>
 
-  <section class="panel split">
-    <div class="chart-card">
-      <h3>Global Port Utilisation</h3>
-      <div class="ring">
-        <svg viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="50"></circle>
-          <circle cx="60" cy="60" r="50" class="ring-progress"
-                  data-progress="{{ (totals.ports_with_epg / (totals.ports or 1) * 100) | round(1) }}"></circle>
-        </svg>
-        <div class="ring-center">
-          <div class="ring-value">{{ totals.ports_with_epg }}</div>
-          <div class="ring-label">ports with EPG</div>
-        </div>
+  <section class="content">
+    <div class="summary-hero">
+      <div>
+        <h1>Capacity Summary</h1>
+        <p>Fast, cached rollups across all fabrics. Select a fabric for full detail.</p>
       </div>
-      <div class="ring-meta">
-        <span>Total Ports: {{ totals.ports }}</span>
+      <div class="summary-actions">
+        <button class="ghost" onclick="loadFabric('all')">All Fabrics</button>
       </div>
     </div>
 
-    <div class="chart-card">
-      <h3>Fabric Discovery</h3>
-      <div class="stat-grid">
-        <div>
-          <div class="stat-value" data-count="{{ fabrics | length }}">0</div>
-          <div class="stat-label">Fabrics</div>
-        </div>
-        <div>
-          <div class="stat-value" data-count="{{ totals.tenants }}">0</div>
-          <div class="stat-label">Tenants</div>
-        </div>
-        <div>
-          <div class="stat-value" data-count="{{ totals.vrfs }}">0</div>
-          <div class="stat-label">VRFs</div>
-        </div>
-        <div>
-          <div class="stat-value" data-count="{{ totals.bds }}">0</div>
-          <div class="stat-label">BDs</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="metric-title">Leafs</div>
+        <div class="metric-value" data-count="{{ totals.leafs }}">0</div>
+        <div class="metric-sub">Spines {{ totals.spines }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="metric-title">EPGs</div>
+        <div class="metric-value" data-count="{{ totals.epgs }}">0</div>
+        <div class="metric-sub">BDs {{ totals.bds }} � VRFs {{ totals.vrfs }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="metric-title">Tenants</div>
+        <div class="metric-value" data-count="{{ totals.tenants }}">0</div>
+        <div class="metric-sub">Endpoints {{ totals.endpoints }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="metric-title">Ports</div>
+        <div class="metric-value" data-count="{{ totals.ports }}">0</div>
+        <div class="metric-sub">Ports w/ EPG {{ totals.ports_with_epg }}</div>
+      </div>
+    </div>
+
+    <div class="detail-panel" id="detail-panel">
+      <div class="panel-header">
+        <h3 id="detail-title">Select a fabric</h3>
+        <div class="panel-actions">
+          <span id="detail-meta" class="limit-meta">Cached summary view</span>
         </div>
       </div>
-      <div class="pill-row">
-        <span class="pill">EPGs {{ totals.epgs }}</span>
-        <span class="pill">Subnets {{ totals.subnets }}</span>
-        <span class="pill">Contracts {{ totals.contracts }}</span>
+      <div id="detail-body" class="detail-body">
+        <div class="empty">Choose a fabric from the left panel to load full details.</div>
       </div>
     </div>
   </section>
-
+</section>
 
 <div id="fabric-modal" class="modal hidden">
   <div class="modal-card">

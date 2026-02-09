@@ -623,3 +623,28 @@ class CapacityAnalyzer:
                 "remaining_leafs_before_linecards": spine_leaf_headroom
             }
         }
+
+    def summarize(self) -> Dict[str, Any]:
+        """Lightweight summary for sidebar and global rollups."""
+        self._load_data()
+        by_role = self._get_fabric_nodes()
+        leafs = by_role.get("leaf", [])
+        spines = by_role.get("spine", [])
+        fex = self._by_type.get("eqptFex", [])
+        ports = self._get_port_stats()
+        return {
+            "summary": {
+                "leafs": len(leafs),
+                "spines": len(spines),
+                "fex": len(fex),
+                "tenants": self._unique_count("fvTenant"),
+                "vrfs": self._unique_count("fvCtx"),
+                "bds": self._unique_count("fvBD"),
+                "epgs": self._unique_count("fvAEPg"),
+                "subnets": self._unique_count("fvSubnet"),
+                "contracts": self._unique_count("vzBrCP"),
+                "endpoints": self._unique_count("fvCEp"),
+            },
+            "ports": ports,
+            "completeness": self.get_data_completeness()
+        }

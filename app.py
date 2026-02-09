@@ -58,6 +58,28 @@ def _get_analyzer(fabric_name: str):
     return analyzer
 
 
+def _get_cached_summary(fabric_name: str):
+    cache_key = f"summary:{fabric_name}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    analyzer = _get_analyzer(fabric_name)
+    summary = analyzer.summarize()
+    cache.set(cache_key, summary, timeout=600)
+    return summary
+
+
+def _get_cached_analysis(fabric_name: str):
+    cache_key = f"analysis:{fabric_name}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    analyzer = _get_analyzer(fabric_name)
+    analysis = analyzer.analyze()
+    cache.set(cache_key, analysis, timeout=600)
+    return analysis
+
+
 @app.context_processor
 def inject_fabrics():
     return {"fabrics": fm.list_fabrics(), "current_fabric": session.get("current_fabric")}
@@ -67,7 +89,7 @@ def inject_fabrics():
 def index():
     current_fabric = session.get("current_fabric")
     fabrics = fm.list_fabrics()
-    fabric_views = []
+    fabric_summaries = []
     totals = {
         "leafs": 0,
         "spines": 0,
@@ -78,28 +100,29 @@ def index():
         "epgs": 0,
         "subnets": 0,
         "contracts": 0,
+        "endpoints": 0,
         "ports": 0,
         "ports_with_epg": 0,
     }
     for fabric in fabrics:
         name = fabric["name"]
-        analyzer = _get_analyzer(name)
         try:
-            analysis = analyzer.analyze()
+            summary_data = _get_cached_summary(name)
         except Exception as exc:
-            analysis = {"error": str(exc)}
-        summary = analysis.get("summary", {})
-        ports = analysis.get("ports", {})
+            summary_data = {"error": str(exc), "summary": {}, "ports": {}}
+        summary = summary_data.get("summary", {})
+        ports = summary_data.get("ports", {})
         for key in ("leafs", "spines", "fex", "tenants", "vrfs", "bds", "epgs", "subnets", "contracts"):
             totals[key] += int(summary.get(key, 0) or 0)
+        totals["endpoints"] += int(summary.get("endpoints", 0) or 0)
         totals["ports"] += int(ports.get("total", 0) or 0)
         totals["ports_with_epg"] += int(ports.get("ports_with_epg", 0) or 0)
-        fabric_views.append({
+        fabric_summaries.append({
             "fabric": name,
             "meta": fabric,
-            "analysis": analysis
+            "summary": summary_data
         })
-    return render_template("index.html", current_fabric=current_fabric, fabrics=fabrics, fabric_views=fabric_views, totals=totals)
+    return render_template("index.html", current_fabric=current_fabric, fabrics=fabrics, fabric_summaries=fabric_summaries, totals=totals)
 
 
 @app.route("/upload_page")
@@ -220,6 +243,8 @@ def upload():
     }
     fm.add_dataset(current_fabric, dataset)
     ANALYZER_CACHE.pop(current_fabric, None)
+    cache.delete(f"summary:{current_fabric}")
+    cache.delete(f"analysis:{current_fabric}")
     return jsonify({"success": True, "filename": filename})
 
 
@@ -275,6 +300,8 @@ def import_collector_zip():
                 })
             imported.append(fabric_name)
             ANALYZER_CACHE.pop(fabric_name, None)
+            cache.delete(f"summary:{fabric_name}")
+            cache.delete(f"analysis:{fabric_name}")
             try:
                 analyzer = _get_analyzer(fabric_name)
                 completeness = analyzer.get_data_completeness()
@@ -298,8 +325,7 @@ def download_offline_collector():
 @app.route("/api/analysis/<fabric_name>")
 def api_analysis(fabric_name):
     fabric_name = validate_fabric_name(fabric_name)
-    analyzer = _get_analyzer(fabric_name)
-    return jsonify(analyzer.analyze())
+    return jsonify(_get_cached_analysis(fabric_name))
 
 
 @app.route("/api/export/excel/<fabric_name>")
