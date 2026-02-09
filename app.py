@@ -15,7 +15,7 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 
 from config import get_config
-from analysis import CapacityAnalyzer, FabricManager
+from analysis import CapacityAnalyzer, FabricManager, parsers
 from analysis.export import export_fabric_excel
 
 app = Flask(__name__)
@@ -41,6 +41,46 @@ logger = logging.getLogger("acicap")
 ANALYZER_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
+def _object_cache_path(fabric_name: str) -> Path:
+    return DATA_DIR / fabric_name / "aci_objects_cache.json"
+
+
+def _load_object_cache(fabric_name: str) -> Dict[str, Any]:
+    cache_path = _object_cache_path(fabric_name)
+    if not cache_path.exists():
+        return {"objects": {}, "modified": ""}
+    try:
+        return json.loads(cache_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"objects": {}, "modified": ""}
+
+
+def _save_object_cache(fabric_name: str, cache: Dict[str, Any]) -> None:
+    cache_path = _object_cache_path(fabric_name)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+
+
+def _object_key(obj: Dict[str, Any]) -> str:
+    obj_type = obj.get("type") or ""
+    attrs = obj.get("attributes", {})
+    dn = attrs.get("dn") or ""
+    if dn:
+        return f"{obj_type}|{dn}"
+    return f"{obj_type}|{json.dumps(attrs, sort_keys=True)}"
+
+
+def _merge_objects(fabric_name: str, new_objects: list, modified: str) -> None:
+    cache = _load_object_cache(fabric_name)
+    objects = cache.get("objects", {})
+    for obj in new_objects:
+        key = _object_key(obj)
+        objects[key] = obj
+    cache["objects"] = objects
+    cache["modified"] = modified
+    _save_object_cache(fabric_name, cache)
+
+
 def validate_fabric_name(name: str) -> str:
     import re
     if not name or not re.fullmatch(r"[a-zA-Z0-9_.-]{1,64}", name.strip()):
@@ -54,6 +94,9 @@ def _get_analyzer(fabric_name: str):
     cached = ANALYZER_CACHE.get(fabric_name)
     if cached and cached.get("modified") == modified:
         return cached["analyzer"]
+    cache_path = _object_cache_path(fabric_name)
+    if cache_path.exists():
+        fabric_data["object_cache_path"] = str(cache_path)
     analyzer = CapacityAnalyzer(fabric_data)
     ANALYZER_CACHE[fabric_name] = {"modified": modified, "analyzer": analyzer}
     return analyzer
@@ -180,6 +223,12 @@ def delete_fabric(fabric_name):
             summary_path.unlink()
         except Exception:
             pass
+    cache_path = _object_cache_path(fabric_name)
+    if cache_path.exists():
+        try:
+            cache_path.unlink()
+        except Exception:
+            pass
     return jsonify({"success": True})
 
 
@@ -199,6 +248,12 @@ def reset_fabrics():
         if summary_path.exists():
             try:
                 summary_path.unlink()
+            except Exception:
+                pass
+        cache_path = _object_cache_path(name)
+        if cache_path.exists():
+            try:
+                cache_path.unlink()
             except Exception:
                 pass
     session.pop("current_fabric", None)
@@ -289,6 +344,11 @@ def upload():
         "size": file_path.stat().st_size
     }
     fm.add_dataset(current_fabric, dataset)
+    try:
+        parsed = parsers.parse_aci(file_path.read_text(encoding="utf-8", errors="ignore"), "json")
+        _merge_objects(current_fabric, parsed.get("objects", []), fm.get_fabric_data(current_fabric).get("modified", ""))
+    except Exception:
+        pass
     ANALYZER_CACHE.pop(current_fabric, None)
     cache.delete(f"summary:{current_fabric}")
     cache.delete(f"analysis:{current_fabric}")
@@ -351,6 +411,11 @@ def import_collector_zip():
                     "path": str(dest),
                     "size": dest.stat().st_size
                 })
+                try:
+                    parsed = parsers.parse_aci(dest.read_text(encoding="utf-8", errors="ignore"), "json")
+                    _merge_objects(fabric_name, parsed.get("objects", []), fm.get_fabric_data(fabric_name).get("modified", ""))
+                except Exception:
+                    pass
             imported.append(fabric_name)
             ANALYZER_CACHE.pop(fabric_name, None)
             cache.delete(f"summary:{fabric_name}")

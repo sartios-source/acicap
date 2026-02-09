@@ -102,6 +102,23 @@ class CapacityAnalyzer:
         if self._aci_objects:
             return
         from . import parsers
+        cache_path = self.fabric_data.get("object_cache_path")
+        if cache_path:
+            try:
+                cache = json.loads(Path(cache_path).read_text(encoding="utf-8"))
+                objects = cache.get("objects", {})
+                if isinstance(objects, dict) and objects:
+                    self._aci_objects = list(objects.values())
+            except Exception:
+                pass
+        if self._aci_objects:
+            for obj in self._aci_objects:
+                obj_type = obj.get("type")
+                if obj_type:
+                    self._class_counts[obj_type] += 1
+                    self._by_type[obj_type].append(obj.get("attributes", {}))
+            return
+
         for dataset in self.datasets:
             if dataset.get("type") != "aci":
                 continue
