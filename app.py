@@ -66,11 +66,37 @@ def inject_fabrics():
 @app.route("/")
 def index():
     current_fabric = session.get("current_fabric")
-    analysis = None
-    if current_fabric:
-        analyzer = _get_analyzer(current_fabric)
+    fabrics = fm.list_fabrics()
+    fabric_views = []
+    totals = {
+        "leafs": 0,
+        "spines": 0,
+        "fex": 0,
+        "tenants": 0,
+        "vrfs": 0,
+        "bds": 0,
+        "epgs": 0,
+        "subnets": 0,
+        "contracts": 0,
+        "ports": 0,
+        "ports_with_epg": 0,
+    }
+    for fabric in fabrics:
+        name = fabric["name"]
+        analyzer = _get_analyzer(name)
         analysis = analyzer.analyze()
-    return render_template("index.html", analysis=analysis, current_fabric=current_fabric)
+        summary = analysis.get("summary", {})
+        ports = analysis.get("ports", {})
+        for key in ("leafs", "spines", "fex", "tenants", "vrfs", "bds", "epgs", "subnets", "contracts"):
+            totals[key] += int(summary.get(key, 0) or 0)
+        totals["ports"] += int(ports.get("total", 0) or 0)
+        totals["ports_with_epg"] += int(ports.get("ports_with_epg", 0) or 0)
+        fabric_views.append({
+            "fabric": name,
+            "meta": fabric,
+            "analysis": analysis
+        })
+    return render_template("index.html", current_fabric=current_fabric, fabrics=fabrics, fabric_views=fabric_views, totals=totals)
 
 
 @app.route("/upload_page")

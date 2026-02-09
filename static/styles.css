@@ -386,6 +386,13 @@ button.primary:hover, a.primary:hover {
   gap: 10px;
 }
 
+.panel-actions input {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #d6e4f2;
+  min-width: 180px;
+}
+
 .table {
   display: grid;
   gap: 8px;
@@ -450,6 +457,56 @@ button.primary:hover, a.primary:hover {
   display: grid;
   gap: 12px;
   margin-top: 16px;
+}
+
+.fabric-gallery {
+  padding: 24px;
+}
+
+.fabric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.fabric-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  border: 1px solid #e4eef9;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.fabric-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fabric-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.fabric-card-detail {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #d8e6f4;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.detail-block h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #5b6a85;
 }
 
 .fabric-item {

@@ -5,8 +5,8 @@
 {% block content %}
 <section class="hero">
   <div class="hero-content">
-    <h1>Enterprise ACI Scalability Command Center</h1>
-    <p>One-stop capacity intelligence across fabrics, with Barclays-styled analytics and offline collection support.</p>
+    <h1>Enterprise ACI Scalability Atlas</h1>
+    <p>Unified, multi-fabric capacity intelligence with Barclays-styled analytics and offline collection support.</p>
     <div class="hero-actions">
       <button class="primary" onclick="openFabricModal()">Create Fabric</button>
       <a class="ghost" href="{{ url_for('upload_page') }}">Upload Data</a>
@@ -18,209 +18,156 @@
   </div>
 </section>
 
-{% if not current_fabric %}
-  <section class="panel">
-    <h2>No Fabric Selected</h2>
-    <p>Select or create a fabric to view capacity analytics.</p>
-    <div class="fabric-list">
-      {% for fabric in fabrics %}
-        <button class="fabric-item" onclick="selectFabric('{{ fabric.name }}')">
-          <div class="fabric-name">{{ fabric.name }}</div>
-          <div class="fabric-meta">{{ fabric.dataset_count }} datasets · {{ fabric.modified }}</div>
-        </button>
+<section class="panel metrics-grid">
+    <div class="metric-card">
+      <div class="metric-title">Total Leafs</div>
+      <div class="metric-value" data-count="{{ totals.leafs }}">0</div>
+      <div class="metric-sub">Spines: {{ totals.spines }}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Total FEX Devices</div>
+      <div class="metric-value" data-count="{{ totals.fex }}">0</div>
+      <div class="metric-sub">Tenants: {{ totals.tenants }}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Total EPGs</div>
+      <div class="metric-value" data-count="{{ totals.epgs }}">0</div>
+      <div class="metric-sub">BDs: {{ totals.bds }} · VRFs: {{ totals.vrfs }}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Ports</div>
+      <div class="metric-value" data-count="{{ totals.ports }}">0</div>
+      <div class="metric-sub">Ports w/ EPG: {{ totals.ports_with_epg }}</div>
+    </div>
+  </section>
+
+  <section class="panel fabric-gallery">
+    <div class="panel-header">
+      <h3>All Fabrics</h3>
+      <div class="panel-actions">
+        <input id="fabric-filter" placeholder="Filter fabrics..." oninput="filterFabrics()">
+        <button class="ghost" onclick="expandAll(true)">Expand All</button>
+        <button class="ghost" onclick="expandAll(false)">Collapse All</button>
+      </div>
+    </div>
+    <div class="fabric-grid" id="fabric-grid">
+      {% for item in fabric_views %}
+      <div class="fabric-card" data-fabric="{{ item.fabric }}">
+        <div class="fabric-card-header">
+          <div>
+            <div class="fabric-name">{{ item.fabric }}</div>
+            <div class="fabric-meta">{{ item.meta.dataset_count }} datasets · {{ item.meta.modified }}</div>
+          </div>
+          <button class="ghost small" onclick="toggleFabric('{{ item.fabric }}')">Details</button>
+        </div>
+        <div class="fabric-card-metrics">
+          <div>
+            <div class="stat-value" data-count="{{ item.analysis.summary.leafs }}">0</div>
+            <div class="stat-label">Leafs</div>
+          </div>
+          <div>
+            <div class="stat-value" data-count="{{ item.analysis.summary.epgs }}">0</div>
+            <div class="stat-label">EPGs</div>
+          </div>
+          <div>
+            <div class="stat-value" data-count="{{ item.analysis.ports.ports_with_epg }}">0</div>
+            <div class="stat-label">Ports w/ EPG</div>
+          </div>
+          <div>
+            <div class="stat-value" data-count="{{ item.analysis.l3out.border_leaf_count }}">0</div>
+            <div class="stat-label">Border Leafs</div>
+          </div>
+        </div>
+        <div class="fabric-card-detail hidden" id="detail-{{ item.fabric }}">
+          <div class="detail-grid">
+            <div class="detail-block">
+              <h4>Port Utilisation</h4>
+              <div class="progress-bar">
+                <div class="progress-fill" data-progress="{{ (item.analysis.ports.ports_with_epg / (item.analysis.ports.total or 1) * 100) | round(1) }}"></div>
+              </div>
+              <div class="progress-meta">
+                {{ item.analysis.ports.ports_with_epg }} / {{ item.analysis.ports.total }} ports
+              </div>
+            </div>
+            <div class="detail-block">
+              <h4>Tenant Scale</h4>
+              <div class="pill-row">
+                <span class="pill">VRFs {{ item.analysis.summary.vrfs }}</span>
+                <span class="pill">BDs {{ item.analysis.summary.bds }}</span>
+                <span class="pill">EPGs {{ item.analysis.summary.epgs }}</span>
+              </div>
+            </div>
+            <div class="detail-block">
+              <h4>Completeness</h4>
+              <div class="pill-row">
+                <span class="pill {{ 'success' if not item.analysis.completeness.missing_required else 'danger' }}">
+                  {{ item.analysis.completeness.completeness_score }}%
+                </span>
+              </div>
+            </div>
+            <div class="detail-block">
+              <h4>Actions</h4>
+              <div class="panel-actions">
+                <button class="ghost small" onclick="selectFabric('{{ item.fabric }}')">Focus</button>
+                <a class="primary small" href="{{ url_for('export_excel', fabric_name=item.fabric) }}">Export Excel</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       {% else %}
         <div class="empty">No fabrics yet. Create one to get started.</div>
       {% endfor %}
     </div>
   </section>
-{% else %}
-  <section class="panel metrics-grid">
-    <div class="metric-card">
-      <div class="metric-title">Leafs</div>
-      <div class="metric-value" data-count="{{ analysis.summary.leafs }}">0</div>
-      <div class="metric-sub">Spines: {{ analysis.summary.spines }}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">FEX Devices</div>
-      <div class="metric-value" data-count="{{ analysis.summary.fex }}">0</div>
-      <div class="metric-sub">Border Leafs: {{ analysis.l3out.border_leaf_count }}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">EPGs</div>
-      <div class="metric-value" data-count="{{ analysis.summary.epgs }}">0</div>
-      <div class="metric-sub">BDs: {{ analysis.summary.bds }} · VRFs: {{ analysis.summary.vrfs }}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">Tenants</div>
-      <div class="metric-value" data-count="{{ analysis.summary.tenants }}">0</div>
-      <div class="metric-sub">Contracts: {{ analysis.summary.contracts }}</div>
-    </div>
-  </section>
 
   <section class="panel split">
     <div class="chart-card">
-      <h3>Port Utilisation</h3>
+      <h3>Global Port Utilisation</h3>
       <div class="ring">
         <svg viewBox="0 0 120 120">
           <circle cx="60" cy="60" r="50"></circle>
           <circle cx="60" cy="60" r="50" class="ring-progress"
-                  data-progress="{{ (analysis.ports.ports_with_epg / (analysis.ports.total or 1) * 100) | round(1) }}"></circle>
+                  data-progress="{{ (totals.ports_with_epg / (totals.ports or 1) * 100) | round(1) }}"></circle>
         </svg>
         <div class="ring-center">
-          <div class="ring-value">{{ analysis.ports.ports_with_epg }}</div>
+          <div class="ring-value">{{ totals.ports_with_epg }}</div>
           <div class="ring-label">ports with EPG</div>
         </div>
       </div>
       <div class="ring-meta">
-        <span>Up: {{ analysis.ports.up }}</span>
-        <span>Down: {{ analysis.ports.down }}</span>
-        <span>Unknown: {{ analysis.ports.unknown }}</span>
+        <span>Total Ports: {{ totals.ports }}</span>
       </div>
     </div>
 
     <div class="chart-card">
-      <h3>L3Out & Border Leaf Scale</h3>
+      <h3>Fabric Discovery</h3>
       <div class="stat-grid">
         <div>
-          <div class="stat-value" data-count="{{ analysis.l3out.l3outs }}">0</div>
-          <div class="stat-label">L3Outs</div>
+          <div class="stat-value" data-count="{{ fabrics | length }}">0</div>
+          <div class="stat-label">Fabrics</div>
         </div>
         <div>
-          <div class="stat-value" data-count="{{ analysis.l3out.external_epgs }}">0</div>
-          <div class="stat-label">External EPGs</div>
+          <div class="stat-value" data-count="{{ totals.tenants }}">0</div>
+          <div class="stat-label">Tenants</div>
         </div>
         <div>
-          <div class="stat-value" data-count="{{ analysis.l3out.bgp_peers }}">0</div>
-          <div class="stat-label">BGP Peers</div>
+          <div class="stat-value" data-count="{{ totals.vrfs }}">0</div>
+          <div class="stat-label">VRFs</div>
         </div>
         <div>
-          <div class="stat-value" data-count="{{ analysis.l3out.ospf_interfaces }}">0</div>
-          <div class="stat-label">OSPF Ifaces</div>
+          <div class="stat-value" data-count="{{ totals.bds }}">0</div>
+          <div class="stat-label">BDs</div>
         </div>
       </div>
       <div class="pill-row">
-        {% for leaf in analysis.l3out.border_leafs %}
-          <span class="pill">Border Leaf {{ leaf }}</span>
-        {% endfor %}
-        {% if not analysis.l3out.border_leafs %}
-          <span class="pill muted">No border leaf data</span>
-        {% endif %}
+        <span class="pill">EPGs {{ totals.epgs }}</span>
+        <span class="pill">Subnets {{ totals.subnets }}</span>
+        <span class="pill">Contracts {{ totals.contracts }}</span>
       </div>
     </div>
   </section>
 
-  <section class="panel split">
-    <div class="chart-card">
-      <h3>VLAN Pools</h3>
-      <div class="progress-row">
-        <div class="progress-label">Pool Utilisation</div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-progress="{{ (analysis.vlan_pools.used_vlan_count / (analysis.vlan_pools.pool_vlan_capacity or 1) * 100) | round(1) }}"></div>
-        </div>
-        <div class="progress-meta">
-          {{ analysis.vlan_pools.used_vlan_count }} used / {{ analysis.vlan_pools.pool_vlan_capacity }} capacity
-        </div>
-      </div>
-      <div class="stat-grid">
-        <div>
-          <div class="stat-value" data-count="{{ analysis.vlan_pools.pool_count }}">0</div>
-          <div class="stat-label">Pools</div>
-        </div>
-        <div>
-          <div class="stat-value" data-count="{{ analysis.vlan_overlap.total_vlans }}">0</div>
-          <div class="stat-label">VLANs in Use</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="chart-card">
-      <h3>vPC Scale</h3>
-      <div class="stat-grid">
-        <div>
-          <div class="stat-value" data-count="{{ analysis.vpc.vpc_domains }}">0</div>
-          <div class="stat-label">vPC Domains</div>
-        </div>
-        <div>
-          <div class="stat-value" data-count="{{ analysis.vpc.port_channels }}">0</div>
-          <div class="stat-label">Port-Channels</div>
-        </div>
-        <div>
-          <div class="stat-value" data-count="{{ analysis.vpc.lacp_entities }}">0</div>
-          <div class="stat-label">LACP Entities</div>
-        </div>
-        <div>
-          <div class="stat-value" data-count="{{ analysis.vpc.vpc_interfaces }}">0</div>
-          <div class="stat-label">vPC Interfaces</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel">
-    <div class="panel-header">
-      <h3>Tenant Scalability</h3>
-      <div class="panel-actions">
-        <a class="ghost" href="{{ url_for('upload_page') }}">Upload More Data</a>
-        <a class="primary small" href="{{ url_for('export_excel', fabric_name=current_fabric) }}">Export Excel</a>
-      </div>
-    </div>
-    <div class="table">
-      <div class="table-row head">
-        <div>Tenant</div>
-        <div>VRFs</div>
-        <div>BDs</div>
-        <div>EPGs</div>
-        <div>Subnets</div>
-        <div>Contracts</div>
-      </div>
-      {% for row in analysis.tenants.rows %}
-      <div class="table-row">
-        <div>{{ row.tenant }}</div>
-        <div>{{ row.vrfs }}</div>
-        <div>{{ row.bds }}</div>
-        <div>{{ row.epgs }}</div>
-        <div>{{ row.subnets }}</div>
-        <div>{{ row.contracts }}</div>
-      </div>
-      {% else %}
-      <div class="table-row empty">No tenant data</div>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="panel">
-    <div class="panel-header">
-      <h3>Data Completeness</h3>
-      <div class="score">{{ analysis.completeness.completeness_score }}%</div>
-    </div>
-    <div class="completeness">
-      <div>
-        <h4>Missing Required</h4>
-        {% if analysis.completeness.missing_required %}
-          <div class="pill-row">
-            {% for item in analysis.completeness.missing_required %}
-              <span class="pill danger">{{ item }}</span>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="pill-row"><span class="pill success">All required classes present</span></div>
-        {% endif %}
-      </div>
-      <div>
-        <h4>Missing Optional</h4>
-        {% if analysis.completeness.missing_optional %}
-          <div class="pill-row">
-            {% for item in analysis.completeness.missing_optional %}
-              <span class="pill muted">{{ item }}</span>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="pill-row"><span class="pill success">All optional classes present</span></div>
-        {% endif %}
-      </div>
-    </div>
-  </section>
-{% endif %}
 
 <div id="fabric-modal" class="modal hidden">
   <div class="modal-card">

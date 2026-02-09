@@ -50,6 +50,26 @@ async function selectFabric(name) {
   location.reload();
 }
 
+function toggleFabric(name) {
+  const panel = document.getElementById(`detail-${name}`);
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+}
+
+function filterFabrics() {
+  const term = (document.getElementById('fabric-filter')?.value || '').toLowerCase();
+  document.querySelectorAll('.fabric-card').forEach((card) => {
+    const name = card.dataset.fabric?.toLowerCase() || '';
+    card.style.display = name.includes(term) ? 'block' : 'none';
+  });
+}
+
+function expandAll(expand) {
+  document.querySelectorAll('.fabric-card-detail').forEach((panel) => {
+    panel.classList.toggle('hidden', !expand);
+  });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-count]').forEach(animateCount);
   document.querySelectorAll('.ring-progress').forEach(animateProgressRing);
