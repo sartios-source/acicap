@@ -29,6 +29,7 @@
           </div>
           <div id="zip-progress-label" class="progress-meta">0%</div>
         </div>
+        <div id="zip-results" class="pill-row" style="margin-top:12px;"></div>
       </div>
       <div class="upload-card">
         <h3>Export Excel</h3>
@@ -84,8 +85,10 @@ async function importZip() {
 
   const progressBar = document.getElementById('zip-progress');
   const progressLabel = document.getElementById('zip-progress-label');
+  const results = document.getElementById('zip-results');
   progressBar.style.width = '0%';
   progressLabel.textContent = '0%';
+  results.innerHTML = '';
 
   const xhr = new XMLHttpRequest();
   xhr.upload.addEventListener('progress', (evt) => {
@@ -99,7 +102,21 @@ async function importZip() {
     if (xhr.readyState === 4) {
       if (xhr.status >= 200 && xhr.status < 300) {
         const data = JSON.parse(xhr.responseText || '{}');
+        progressLabel.textContent = 'Processing...';
+        progressBar.style.width = '100%';
         if (!data.success) return alert(data.error || 'Import failed');
+        if (Array.isArray(data.results)) {
+          results.innerHTML = '';
+          data.results.forEach((item) => {
+            const summary = item.completeness || {};
+            const missingReq = (summary.missing_required || []).length;
+            const score = summary.completeness_score;
+            const pill = document.createElement('span');
+            pill.className = missingReq ? 'pill danger' : 'pill success';
+            pill.textContent = `${item.fabric}: ${score ?? 'n/a'}%`;
+            results.appendChild(pill);
+          });
+        }
         location.reload();
       } else {
         alert('Import failed');

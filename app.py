@@ -173,6 +173,7 @@ def import_collector_zip():
     zip_path = os.path.join(str(temp_dir), filename)
     upload_file.save(zip_path)
     imported = []
+    results = []
     try:
         with zipfile.ZipFile(zip_path, "r") as zf:
             zf.extractall(str(temp_dir))
@@ -207,7 +208,16 @@ def import_collector_zip():
                 })
             imported.append(fabric_name)
             ANALYZER_CACHE.pop(fabric_name, None)
-        return jsonify({"success": True, "fabrics": sorted(list(set(imported)))})
+            try:
+                analyzer = _get_analyzer(fabric_name)
+                completeness = analyzer.get_data_completeness()
+            except Exception as exc:
+                completeness = {"error": str(exc)}
+            results.append({
+                "fabric": fabric_name,
+                "completeness": completeness
+            })
+        return jsonify({"success": True, "fabrics": sorted(list(set(imported))), "results": results})
     finally:
         shutil.rmtree(str(temp_dir), ignore_errors=True)
 
