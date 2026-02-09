@@ -141,6 +141,58 @@
                 <input type="number" min="1" max="16" value="{{ item.meta.uplinks_per_leaf or '' }}" placeholder="auto"
                        onblur="saveUplinks('{{ item.fabric }}', this.value)">
               </div>
+              <div class="meta-row">
+                <label>Scale profile</label>
+                <select onchange="saveScaleProfile('{{ item.fabric }}', this.value)">
+                  <option value="LSE2" {% if item.analysis.scale_profile == 'LSE2' %}selected{% endif %}>LSE2</option>
+                  <option value="LSE" {% if item.analysis.scale_profile == 'LSE' %}selected{% endif %}>LSE</option>
+                  <option value="ALE" {% if item.analysis.scale_profile == 'ALE' %}selected{% endif %}>ALE</option>
+                </select>
+              </div>
+              <div class="meta-row">
+                <label>Endpoint profile</label>
+                <select onchange="saveEndpointProfile('{{ item.fabric }}', this.value)">
+                  <option value="default" {% if item.analysis.endpoint_profile == 'default' %}selected{% endif %}>Default</option>
+                  <option value="high_dual_stack" {% if item.analysis.endpoint_profile == 'high_dual_stack' %}selected{% endif %}>High Dual Stack</option>
+                  <option value="high_lpm" {% if item.analysis.endpoint_profile == 'high_lpm' %}selected{% endif %}>High LPM</option>
+                  <option value="high_policy" {% if item.analysis.endpoint_profile == 'high_policy' %}selected{% endif %}>High Policy</option>
+                </select>
+              </div>
+            </div>
+            <div class="detail-block">
+              <h4>Port Utilization Drilldown</h4>
+              <div class="drill-grid">
+                <div>
+                  <div class="drill-title">Leafs</div>
+                  <div class="table compact">
+                    <div class="table-row head">
+                      <div>Leaf</div><div>Total</div><div>Up</div><div>Down</div>
+                    </div>
+                    {% for row in item.analysis.port_utilization.leafs[:8] %}
+                    <div class="table-row">
+                      <div>{{ row.node }}</div><div>{{ row.total }}</div><div>{{ row.up }}</div><div>{{ row.down }}</div>
+                    </div>
+                    {% else %}
+                    <div class="table-row empty">No leaf port data</div>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div>
+                  <div class="drill-title">FEX</div>
+                  <div class="table compact">
+                    <div class="table-row head">
+                      <div>FEX</div><div>Total</div><div>Up</div><div>Down</div>
+                    </div>
+                    {% for row in item.analysis.port_utilization.fex[:8] %}
+                    <div class="table-row">
+                      <div>{{ row.fex }}</div><div>{{ row.total }}</div><div>{{ row.up }}</div><div>{{ row.down }}</div>
+                    </div>
+                    {% else %}
+                    <div class="table-row empty">No FEX port data</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

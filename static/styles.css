@@ -541,6 +541,30 @@ button.primary:hover, a.primary:hover {
   border: 1px solid #d6e4f2;
 }
 
+.meta-row select {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #d6e4f2;
+  background: #fff;
+}
+
+.drill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.drill-title {
+  font-size: 12px;
+  color: #5b6a85;
+  margin-bottom: 6px;
+}
+
+.table.compact .table-row {
+  grid-template-columns: repeat(4, 1fr);
+  font-size: 12px;
+}
+
 .limit-meta {
   font-size: 12px;
   color: #6c7a96;

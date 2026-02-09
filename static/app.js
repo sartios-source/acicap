@@ -69,6 +69,26 @@ async function saveUplinks(name, value) {
   if (!data.success) alert(data.error || 'Update failed');
 }
 
+async function saveScaleProfile(name, value) {
+  const res = await fetch(`/fabrics/${name}/meta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scale_profile: value })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) alert(data.error || 'Update failed');
+}
+
+async function saveEndpointProfile(name, value) {
+  const res = await fetch(`/fabrics/${name}/meta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint_profile: value })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) alert(data.error || 'Update failed');
+}
+
 function toggleFabric(name) {
   const panel = document.getElementById(`detail-${name}`);
   if (!panel) return;

@@ -143,6 +143,8 @@ def update_fabric_meta(fabric_name):
     fabric_data = fm.get_fabric_data(fabric_name)
     description = str(data.get("description", fabric_data.get("description", ""))).strip()
     uplinks_per_leaf = data.get("uplinks_per_leaf")
+    scale_profile = data.get("scale_profile")
+    endpoint_profile = data.get("endpoint_profile")
     fabric_data["description"] = description
     if uplinks_per_leaf is not None:
         try:
@@ -152,6 +154,10 @@ def update_fabric_meta(fabric_name):
                 fabric_data["uplinks_per_leaf"] = int(uplinks_per_leaf)
         except Exception:
             return jsonify({"error": "uplinks_per_leaf must be an integer"}), 400
+    if scale_profile:
+        fabric_data["scale_profile"] = str(scale_profile).upper()
+    if endpoint_profile:
+        fabric_data["endpoint_profile"] = str(endpoint_profile).lower()
     fm.save_fabric_metadata(fabric_name, fabric_data)
     ANALYZER_CACHE.pop(fabric_name, None)
     return jsonify({"success": True})

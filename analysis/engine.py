@@ -459,6 +459,82 @@ class CapacityAnalyzer:
         mid = len(counts) // 2
         return counts[mid] if len(counts) % 2 == 1 else max(1, int(round((counts[mid - 1] + counts[mid]) / 2)))
 
+    def _get_port_utilization_breakdown(self) -> Dict[str, Any]:
+        leaf_ids = {
+            str(n.get("id")) for n in self._by_type.get("fabricNode", [])
+            if (n.get("role") or "").lower() == "leaf"
+        }
+        spine_ids = {
+            str(n.get("id")) for n in self._by_type.get("fabricNode", [])
+            if (n.get("role") or "").lower() == "spine"
+        }
+
+        def add_stat(bucket, node_id, oper_st):
+            bucket.setdefault(node_id, {"total": 0, "up": 0, "down": 0, "unknown": 0})
+            bucket[node_id]["total"] += 1
+            if oper_st == "up":
+                bucket[node_id]["up"] += 1
+            elif oper_st == "down":
+                bucket[node_id]["down"] += 1
+            else:
+                bucket[node_id]["unknown"] += 1
+
+        leaf_stats = {}
+        spine_stats = {}
+        for iface in self._by_type.get("ethpmPhysIf", []):
+            dn = iface.get("dn", "")
+            node_id = _extract_node_id_from_dn(dn)
+            if not node_id:
+                continue
+            oper = (iface.get("operSt") or "").lower()
+            if node_id in leaf_ids:
+                add_stat(leaf_stats, node_id, oper)
+            elif node_id in spine_ids:
+                add_stat(spine_stats, node_id, oper)
+
+        fex_stats = {}
+        for fex in self._by_type.get("eqptFex", []):
+            fex_id = fex.get("id")
+            if not fex_id:
+                dn = fex.get("dn", "")
+                match = re.search(r"extch-(\d+)", dn)
+                fex_id = match.group(1) if match else None
+            if not fex_id:
+                continue
+            fex_stats[str(fex_id)] = {"total": 0, "up": 0, "down": 0, "unknown": 0}
+
+        for iface in self._by_type.get("ethpmPhysIf", []):
+            iface_id = iface.get("id", "") or _extract_interface_id_from_dn(iface.get("dn", ""))
+            match = re.match(r"^eth(\d+)/", iface_id)
+            if not match:
+                continue
+            fex_id = match.group(1)
+            if fex_id not in fex_stats:
+                continue
+            oper = (iface.get("operSt") or "").lower()
+            fex_stats[fex_id]["total"] += 1
+            if oper == "up":
+                fex_stats[fex_id]["up"] += 1
+            elif oper == "down":
+                fex_stats[fex_id]["down"] += 1
+            else:
+                fex_stats[fex_id]["unknown"] += 1
+
+        def to_rows(stats):
+            rows = []
+            for node_id, data in stats.items():
+                rows.append({"node": node_id, **data})
+            return sorted(rows, key=lambda x: x["node"])
+
+        return {
+            "leafs": to_rows(leaf_stats),
+            "spines": to_rows(spine_stats),
+            "fex": [
+                {"fex": fex_id, **data}
+                for fex_id, data in sorted(fex_stats.items(), key=lambda x: x[0])
+            ],
+        }
+
     def analyze(self) -> Dict[str, Any]:
         self._load_data()
 
@@ -468,6 +544,7 @@ class CapacityAnalyzer:
         fex = self._by_type.get("eqptFex", [])
 
         tenant_rollups = self._get_tenant_rollups()
+        endpoints = self._unique_count("fvCEp")
         summary = {
             "leafs": len(leafs),
             "spines": len(spines),
@@ -478,6 +555,7 @@ class CapacityAnalyzer:
             "epgs": self._unique_count("fvAEPg"),
             "subnets": self._unique_count("fvSubnet"),
             "contracts": self._unique_count("vzBrCP"),
+            "endpoints": endpoints,
         }
         ports = self._get_port_stats()
         spine_capacity = self._get_spine_port_capacity()
@@ -490,6 +568,17 @@ class CapacityAnalyzer:
         uplinks_per_leaf = int(self.fabric_data.get("uplinks_per_leaf") or 0) or self._infer_uplinks_per_leaf(default_uplinks)
         leafs_supported_by_spines = (spine_capacity["total_spine_ports"] // uplinks_per_leaf) if uplinks_per_leaf else 0
         spine_leaf_headroom = max(leafs_supported_by_spines - summary["leafs"], 0)
+        scale_profile = (self.fabric_data.get("scale_profile") or "LSE2").upper()
+        l3outs_limit = per_fabric.get("l3outs_per_fabric_lse") if scale_profile != "ALE" else per_fabric.get("l3outs_per_fabric_ale")
+        external_epgs_limit = per_fabric.get("external_epgs_per_fabric_lse") if scale_profile != "ALE" else per_fabric.get("external_epgs_per_fabric_ale")
+        endpoint_profile = (self.fabric_data.get("endpoint_profile") or "default").lower()
+        endpoint_limit_map = {
+            "default": per_fabric.get("endpoints_per_leaf_default"),
+            "high_dual_stack": per_fabric.get("endpoints_per_leaf_high_dual_stack"),
+            "high_lpm": per_fabric.get("endpoints_per_leaf_high_lpm"),
+            "high_policy": per_fabric.get("endpoints_per_leaf_high_policy_lse2"),
+        }
+        endpoints_per_leaf_limit = endpoint_limit_map.get(endpoint_profile, per_fabric.get("endpoints_per_leaf_default"))
         headroom = {
             "leafs": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches")),
             "leafs_per_pod": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches_per_pod")),
@@ -497,12 +586,19 @@ class CapacityAnalyzer:
             "tenants": self._compute_headroom(summary["tenants"], per_cluster.get("tenants")),
             "vrfs": self._compute_headroom(summary["vrfs"], per_cluster.get("vrfs")),
             "bds": self._compute_headroom(summary["bds"], per_fabric.get("bds")),
+            "bds_per_leaf": self._compute_headroom(summary["bds"], per_fabric.get("bds_per_leaf")),
             "epgs": self._compute_headroom(summary["epgs"], per_fabric.get("epgs")),
+            "epgs_per_bd_per_leaf": self._compute_headroom(summary["epgs"], per_fabric.get("epgs_per_bd_per_leaf")),
             "contracts": self._compute_headroom(summary["contracts"], per_fabric.get("contracts")),
             "fex": self._compute_headroom(summary["fex"], per_fabric.get("fexs")),
             "ports": self._compute_headroom(ports.get("total", 0), per_fabric.get("physical_ports")),
             "epgs_per_tenant": self._compute_headroom(max_epg_per_tenant, per_tenant_epg_limit),
-            "leafs_by_spine_ports": self._compute_headroom(summary["leafs"], leafs_supported_by_spines)
+            "leafs_by_spine_ports": self._compute_headroom(summary["leafs"], leafs_supported_by_spines),
+            "l3outs": self._compute_headroom(self._unique_count("l3extOut"), l3outs_limit),
+            "external_epgs": self._compute_headroom(self._unique_count("l3extInstP"), external_epgs_limit),
+            "pc_vpc_per_leaf": self._compute_headroom(self._unique_count("pcAggrIf"), per_fabric.get("pc_vpc_per_leaf")),
+            "ports_x_vlans": self._compute_headroom(len(self._by_type.get("fvRsPathAtt", [])), per_fabric.get("ports_x_vlans")),
+            "endpoints_per_leaf": self._compute_headroom(endpoints, endpoints_per_leaf_limit),
         }
 
         return {
@@ -517,6 +613,9 @@ class CapacityAnalyzer:
             "l3out": self._get_l3out_scale(),
             "cisco_limits": limits,
             "headroom": headroom,
+            "scale_profile": scale_profile,
+            "endpoint_profile": endpoint_profile,
+            "port_utilization": self._get_port_utilization_breakdown(),
             "spine_capacity": {
                 **spine_capacity,
                 "uplinks_per_leaf": uplinks_per_leaf,
