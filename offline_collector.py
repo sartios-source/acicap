@@ -685,6 +685,7 @@ def parse_args():
     parser.add_argument("--output-dir", default="network_data", help="Output directory")
     parser.add_argument("--log-level", default="INFO", help="Log level")
     parser.add_argument("--aci-classes", help="Comma-separated ACI classes to collect (defaults to full set)")
+    parser.add_argument("--threads", type=int, help="Parallel threads for multi-host collection")
     return parser.parse_args()
 
 
@@ -747,14 +748,17 @@ def main():
     final_status = 0
     max_threads = 1
     if len(apic_hosts) > 1:
-        try:
-            thread_input = input(f"Parallel threads (1-{len(apic_hosts)}, default 4): ").strip()
-            if thread_input:
-                max_threads = max(1, min(int(thread_input), len(apic_hosts)))
-            else:
-                max_threads = min(4, len(apic_hosts))
-        except Exception:
-            max_threads = min(4, len(apic_hosts))
+        if args.threads:
+            max_threads = max(1, min(int(args.threads), len(apic_hosts)))
+        else:
+            try:
+                thread_input = input(f"Parallel threads (1-{len(apic_hosts)}, default 8): ").strip()
+                if thread_input:
+                    max_threads = max(1, min(int(thread_input), len(apic_hosts)))
+                else:
+                    max_threads = min(8, len(apic_hosts))
+            except Exception:
+                max_threads = min(8, len(apic_hosts))
 
     if max_threads > 1:
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
