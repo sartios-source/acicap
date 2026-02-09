@@ -1,0 +1,25 @@
+{
+  "5.2(4)": {
+    "cluster_size": {
+      "4": {
+        "apic_nodes": 4,
+        "leaf_switches": 200,
+        "leaf_switches_per_pod": 200,
+        "tier2_leaf_switches_per_pod": 100,
+        "pods": 6,
+        "tenants": 1000,
+        "vrfs": 1000
+      }
+    },
+    "per_fabric": {
+      "spine_switches_per_pod": 6,
+      "spine_switches_total": 24,
+      "fexs": 650,
+      "contracts": 10000,
+      "contract_filters": 10000,
+      "epgs": 15000,
+      "bds": 15000,
+      "physical_ports": 24000
+    }
+  }
+}

@@ -525,6 +525,20 @@ button.primary:hover, a.primary:hover {
   color: #5b6a85;
 }
 
+.limit-meta {
+  font-size: 12px;
+  color: #6c7a96;
+  margin-bottom: 8px;
+}
+
+.limit-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 6px 10px;
+  font-size: 12px;
+  color: #2c3a55;
+}
+
 .fabric-item {
   text-align: left;
   padding: 14px 16px;

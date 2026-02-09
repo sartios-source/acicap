@@ -106,6 +106,23 @@
               </div>
             </div>
             <div class="detail-block">
+              <h4>Cisco Limits</h4>
+              <div class="limit-meta">
+                Release {{ item.analysis.cisco_limits.release }} · APIC {{ item.analysis.cisco_limits.cluster_size }}-node
+              </div>
+              <div class="limit-grid">
+                <div>Leafs</div><div>{{ item.analysis.headroom.leafs.current }} / {{ item.analysis.headroom.leafs.maximum }}</div><div>{{ item.analysis.headroom.leafs.remaining }} left</div>
+                <div>Spines</div><div>{{ item.analysis.headroom.spines.current }} / {{ item.analysis.headroom.spines.maximum }}</div><div>{{ item.analysis.headroom.spines.remaining }} left</div>
+                <div>Tenants</div><div>{{ item.analysis.headroom.tenants.current }} / {{ item.analysis.headroom.tenants.maximum }}</div><div>{{ item.analysis.headroom.tenants.remaining }} left</div>
+                <div>VRFs</div><div>{{ item.analysis.headroom.vrfs.current }} / {{ item.analysis.headroom.vrfs.maximum }}</div><div>{{ item.analysis.headroom.vrfs.remaining }} left</div>
+                <div>BDs</div><div>{{ item.analysis.headroom.bds.current }} / {{ item.analysis.headroom.bds.maximum }}</div><div>{{ item.analysis.headroom.bds.remaining }} left</div>
+                <div>EPGs</div><div>{{ item.analysis.headroom.epgs.current }} / {{ item.analysis.headroom.epgs.maximum }}</div><div>{{ item.analysis.headroom.epgs.remaining }} left</div>
+                <div>Contracts</div><div>{{ item.analysis.headroom.contracts.current }} / {{ item.analysis.headroom.contracts.maximum }}</div><div>{{ item.analysis.headroom.contracts.remaining }} left</div>
+                <div>FEX</div><div>{{ item.analysis.headroom.fex.current }} / {{ item.analysis.headroom.fex.maximum }}</div><div>{{ item.analysis.headroom.fex.remaining }} left</div>
+                <div>Ports</div><div>{{ item.analysis.headroom.ports.current }} / {{ item.analysis.headroom.ports.maximum }}</div><div>{{ item.analysis.headroom.ports.remaining }} left</div>
+              </div>
+            </div>
+            <div class="detail-block">
               <h4>Actions</h4>
               <div class="panel-actions">
                 <button class="ghost small" onclick="selectFabric('{{ item.fabric }}')">Focus</button>

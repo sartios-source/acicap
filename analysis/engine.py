@@ -3,6 +3,7 @@ from collections import defaultdict, Counter
 import re
 from pathlib import Path
 import json
+from functools import lru_cache
 
 
 REQUIRED_CLASSES = [
@@ -312,6 +313,62 @@ class CapacityAnalyzer:
             "border_leafs": border_leafs
         }
 
+    def _detect_apic_release(self) -> str:
+        candidates = []
+        for attrs in self._by_type.get("topSystem", []):
+            version = attrs.get("version")
+            if version:
+                candidates.append(version)
+        for attrs in self._by_type.get("firmwareCtrlrRunning", []):
+            version = attrs.get("version")
+            if version:
+                candidates.append(version)
+        for value in candidates:
+            match = re.search(r"(\\d+\\.\\d+\\(\\d+\\))", value)
+            if match:
+                return match.group(1)
+            match = re.search(r"(\\d+\\.\\d+\\.\\d+)", value)
+            if match:
+                return match.group(1)
+        return self.fabric_data.get("apic_release") or "5.2(4)"
+
+    def _detect_apic_cluster_size(self) -> int:
+        controllers = [
+            n for n in self._by_type.get("fabricNode", [])
+            if (n.get("role") or "").lower() == "controller"
+        ]
+        return len(controllers) if controllers else 4
+
+    @lru_cache(maxsize=4)
+    def _load_scalability_limits(self) -> Dict[str, Any]:
+        limits_path = Path(__file__).parent.parent / "data" / "scalability_limits.json"
+        if not limits_path.exists():
+            return {}
+        return json.loads(limits_path.read_text(encoding="utf-8"))
+
+    def _get_cisco_limits(self) -> Dict[str, Any]:
+        release = self._detect_apic_release()
+        cluster_size = self._detect_apic_cluster_size()
+        limits = self._load_scalability_limits()
+        release_key = release if release in limits else "5.2(4)"
+        cluster_key = str(cluster_size)
+        release_limits = limits.get(release_key, {})
+        per_cluster = release_limits.get("cluster_size", {}).get(cluster_key, {})
+        per_fabric = release_limits.get("per_fabric", {})
+        return {
+            "release": release_key,
+            "cluster_size": cluster_size,
+            "per_cluster": per_cluster,
+            "per_fabric": per_fabric,
+        }
+
+    def _compute_headroom(self, current: int, maximum: int) -> Dict[str, Any]:
+        if not maximum:
+            return {"current": current, "maximum": None, "remaining": None, "pct": None}
+        remaining = max(maximum - current, 0)
+        pct = round((current / maximum) * 100, 1) if maximum else None
+        return {"current": current, "maximum": maximum, "remaining": remaining, "pct": pct}
+
     def analyze(self) -> Dict[str, Any]:
         self._load_data()
 
@@ -331,15 +388,33 @@ class CapacityAnalyzer:
             "subnets": self._unique_count("fvSubnet"),
             "contracts": self._unique_count("vzBrCP"),
         }
+        ports = self._get_port_stats()
+        limits = self._get_cisco_limits()
+        per_cluster = limits.get("per_cluster", {})
+        per_fabric = limits.get("per_fabric", {})
+        headroom = {
+            "leafs": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches")),
+            "leafs_per_pod": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches_per_pod")),
+            "spines": self._compute_headroom(summary["spines"], per_fabric.get("spine_switches_total")),
+            "tenants": self._compute_headroom(summary["tenants"], per_cluster.get("tenants")),
+            "vrfs": self._compute_headroom(summary["vrfs"], per_cluster.get("vrfs")),
+            "bds": self._compute_headroom(summary["bds"], per_fabric.get("bds")),
+            "epgs": self._compute_headroom(summary["epgs"], per_fabric.get("epgs")),
+            "contracts": self._compute_headroom(summary["contracts"], per_fabric.get("contracts")),
+            "fex": self._compute_headroom(summary["fex"], per_fabric.get("fexs")),
+            "ports": self._compute_headroom(ports.get("total", 0), per_fabric.get("physical_ports")),
+        }
 
         return {
             "summary": summary,
             "completeness": self.get_data_completeness(),
-            "ports": self._get_port_stats(),
+            "ports": ports,
             "tenants": self._get_tenant_rollups(),
             "epg_spread": self._get_epg_spread(),
             "vlan_overlap": self._get_vlan_overlap(),
             "vlan_pools": self._get_vlan_pools(),
             "vpc": self._get_vpc_scale(),
-            "l3out": self._get_l3out_scale()
+            "l3out": self._get_l3out_scale(),
+            "cisco_limits": limits,
+            "headroom": headroom
         }

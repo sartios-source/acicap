@@ -63,7 +63,13 @@ DATA_COMPLETENESS_CLASSES = [
     'infraRsDomP',
     'infraAttEntityP',
     'lldpAdjEp',
-    'cdpAdjEp'
+    'cdpAdjEp',
+    'eqptCh',
+    'eqptSupC',
+    'eqptLC',
+    'eqptSlot',
+    'topSystem',
+    'firmwareCtrlrRunning'
 ]
 
 REQUIRED_ACI_CLASSES = [
