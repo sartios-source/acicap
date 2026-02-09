@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Tuple
 from collections import defaultdict, Counter
 import re
 from pathlib import Path
+import json
 
 
 REQUIRED_CLASSES = [
@@ -88,6 +89,7 @@ class CapacityAnalyzer:
         self._class_counts: Counter = Counter()
 
         self._by_type = defaultdict(list)
+        self._aci_object_index = set()
 
     def _load_data(self) -> None:
         if self._aci_objects:
@@ -109,6 +111,10 @@ class CapacityAnalyzer:
                 obj_type = obj.get("type")
                 attrs = obj.get("attributes", {})
                 dn = attrs.get("dn", "")
+                key = (obj_type, dn) if dn else (obj_type, json.dumps(attrs, sort_keys=True))
+                if key in self._aci_object_index:
+                    continue
+                self._aci_object_index.add(key)
                 if obj_type in {"eqptExtCh", "eqptCh"}:
                     if obj_type == "eqptExtCh" or ("extch" in dn or "fex-" in dn):
                         obj_type = "eqptFex"
@@ -133,6 +139,14 @@ class CapacityAnalyzer:
             if obj_type:
                 self._class_counts[obj_type] += 1
                 self._by_type[obj_type].append(obj.get("attributes", {}))
+
+    def _unique_count(self, obj_type: str) -> int:
+        seen = set()
+        for attrs in self._by_type.get(obj_type, []):
+            dn = attrs.get("dn")
+            if dn:
+                seen.add(dn)
+        return len(seen)
 
     def get_data_completeness(self) -> Dict[str, Any]:
         self._load_data()
@@ -310,12 +324,12 @@ class CapacityAnalyzer:
             "leafs": len(leafs),
             "spines": len(spines),
             "fex": len(fex),
-            "tenants": len(self._by_type.get("fvTenant", [])),
-            "vrfs": len(self._by_type.get("fvCtx", [])),
-            "bds": len(self._by_type.get("fvBD", [])),
-            "epgs": len(self._by_type.get("fvAEPg", [])),
-            "subnets": len(self._by_type.get("fvSubnet", [])),
-            "contracts": len(self._by_type.get("vzBrCP", []))
+            "tenants": self._unique_count("fvTenant"),
+            "vrfs": self._unique_count("fvCtx"),
+            "bds": self._unique_count("fvBD"),
+            "epgs": self._unique_count("fvAEPg"),
+            "subnets": self._unique_count("fvSubnet"),
+            "contracts": self._unique_count("vzBrCP"),
         }
 
         return {
