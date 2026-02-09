@@ -9,6 +9,7 @@
     "N9K-X9736C-FX3": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": true },
     "N9K-X9736C-FX": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": true },
     "N9K-X9732C-EX": { "spine_ports": 32, "speed": "100G", "aci_spine_supported": true },
+    "N9K-X9736Q-FX": { "spine_ports": 36, "speed": "40G", "aci_spine_supported": true },
     "N9K-X9432C-S": { "spine_ports": 32, "speed": "100G", "aci_spine_supported": false },
     "N9K-X9636C-R": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": false },
     "N9K-X9636C-RX": { "spine_ports": 36, "speed": "100G", "aci_spine_supported": false },
