@@ -31,6 +31,7 @@ cache = Cache(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT":
 BASE_DIR = app.config["BASE_DIR"]
 FABRICS_DIR = app.config["FABRICS_DIR"]
 OUTPUT_DIR = app.config["OUTPUT_DIR"]
+DATA_DIR = app.config["DATA_DIR"]
 
 fm = FabricManager(FABRICS_DIR)
 
@@ -63,8 +64,24 @@ def _get_cached_summary(fabric_name: str):
     cached = cache.get(cache_key)
     if cached:
         return cached
+    fabric_data = fm.get_fabric_data(fabric_name)
+    modified = fabric_data.get("modified", "")
+    summary_path = DATA_DIR / fabric_name / "summary.json"
+    if summary_path.exists():
+        try:
+            stored = json.loads(summary_path.read_text(encoding="utf-8"))
+            if stored.get("modified") == modified and "summary" in stored:
+                cache.set(cache_key, stored["summary"], timeout=600)
+                return stored["summary"]
+        except Exception:
+            pass
     analyzer = _get_analyzer(fabric_name)
     summary = analyzer.summarize()
+    try:
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(json.dumps({"modified": modified, "summary": summary}, indent=2), encoding="utf-8")
+    except Exception:
+        pass
     cache.set(cache_key, summary, timeout=600)
     return summary
 
@@ -157,6 +174,12 @@ def delete_fabric(fabric_name):
     ANALYZER_CACHE.pop(fabric_name, None)
     if session.get("current_fabric") == fabric_name:
         session.pop("current_fabric", None)
+    summary_path = DATA_DIR / fabric_name / "summary.json"
+    if summary_path.exists():
+        try:
+            summary_path.unlink()
+        except Exception:
+            pass
     return jsonify({"success": True})
 
 
@@ -172,6 +195,12 @@ def reset_fabrics():
         ANALYZER_CACHE.pop(name, None)
         cache.delete(f"summary:{name}")
         cache.delete(f"analysis:{name}")
+        summary_path = DATA_DIR / name / "summary.json"
+        if summary_path.exists():
+            try:
+                summary_path.unlink()
+            except Exception:
+                pass
     session.pop("current_fabric", None)
     return jsonify({"success": True, "deleted": len(fabrics)})
 
@@ -263,6 +292,12 @@ def upload():
     ANALYZER_CACHE.pop(current_fabric, None)
     cache.delete(f"summary:{current_fabric}")
     cache.delete(f"analysis:{current_fabric}")
+    summary_path = DATA_DIR / current_fabric / "summary.json"
+    if summary_path.exists():
+        try:
+            summary_path.unlink()
+        except Exception:
+            pass
     return jsonify({"success": True, "filename": filename})
 
 
@@ -320,6 +355,12 @@ def import_collector_zip():
             ANALYZER_CACHE.pop(fabric_name, None)
             cache.delete(f"summary:{fabric_name}")
             cache.delete(f"analysis:{fabric_name}")
+            summary_path = DATA_DIR / fabric_name / "summary.json"
+            if summary_path.exists():
+                try:
+                    summary_path.unlink()
+                except Exception:
+                    pass
             try:
                 analyzer = _get_analyzer(fabric_name)
                 completeness = analyzer.get_data_completeness()
