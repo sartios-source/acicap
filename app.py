@@ -90,6 +90,8 @@ def validate_fabric_name(name: str) -> str:
 
 def _get_analyzer(fabric_name: str):
     fabric_data = fm.get_fabric_data(fabric_name)
+    fabric_data["name"] = fabric_name
+    fabric_data["data_dir"] = str(DATA_DIR)
     modified = fabric_data.get("modified", "")
     cached = ANALYZER_CACHE.get(fabric_name)
     if cached and cached.get("modified") == modified:
@@ -487,6 +489,18 @@ def download_offline_collector():
 def api_analysis(fabric_name):
     fabric_name = validate_fabric_name(fabric_name)
     return jsonify(_get_cached_analysis(fabric_name))
+
+
+@app.route("/api/profile/<fabric_name>")
+def api_profile(fabric_name):
+    fabric_name = validate_fabric_name(fabric_name)
+    profile_path = DATA_DIR / fabric_name / "profile.json"
+    if not profile_path.exists():
+        return jsonify({"fabric": fabric_name, "events": []})
+    try:
+        return jsonify(json.loads(profile_path.read_text(encoding="utf-8")))
+    except Exception:
+        return jsonify({"fabric": fabric_name, "events": []})
 
 
 @app.route("/api/export/excel/<fabric_name>")

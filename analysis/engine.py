@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 import json
 import os
+import time
+import logging
 from functools import lru_cache
 
 
@@ -19,6 +21,9 @@ REQUIRED_CLASSES = [
     "ethpmPhysIf",
     "physDomP"
 ]
+
+PROFILE_ENABLED = os.environ.get("ACICAP_PROFILE", "").lower() in ("1", "true", "yes", "on")
+logger = logging.getLogger("acicap")
 
 OPTIONAL_CLASSES = [
     "vzBrCP",
@@ -97,13 +102,50 @@ class CapacityAnalyzer:
 
         self._by_type = defaultdict(list)
         self._aci_object_index = set()
+        self._profile_enabled = bool(self.fabric_data.get("profile")) or PROFILE_ENABLED
+        self._profile_events: List[Dict[str, Any]] = []
+
+    def _profile_event(self, name: str, start: float, **meta) -> None:
+        if not self._profile_enabled:
+            return
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        event = {"name": name, "duration_ms": duration_ms}
+        if meta:
+            event.update(meta)
+        self._profile_events.append(event)
+
+    def _write_profile(self) -> None:
+        if not self._profile_enabled:
+            return
+        data_dir = self.fabric_data.get("data_dir")
+        fabric_name = self.fabric_data.get("name")
+        if not data_dir or not fabric_name:
+            return
+        payload = {
+            "fabric": fabric_name,
+            "events": self._profile_events,
+        }
+        try:
+            path = Path(data_dir) / fabric_name / "profile.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        except Exception as exc:
+            logger.warning("Failed to write profile data: %s", exc)
 
     def _load_data(self) -> None:
         if self._aci_objects:
+            if self._profile_enabled:
+                self._profile_events.append({
+                    "name": "load_data_cached",
+                    "duration_ms": 0,
+                    "objects": len(self._aci_objects)
+                })
             return
         from . import parsers
+        load_start = time.perf_counter()
         cache_path = self.fabric_data.get("object_cache_path")
         if cache_path:
+            cache_start = time.perf_counter()
             try:
                 cache = json.loads(Path(cache_path).read_text(encoding="utf-8"))
                 objects = cache.get("objects", {})
@@ -111,12 +153,14 @@ class CapacityAnalyzer:
                     self._aci_objects = list(objects.values())
             except Exception:
                 pass
+            self._profile_event("load_cache", cache_start, cache_path=str(cache_path), objects=len(self._aci_objects))
         if self._aci_objects:
             for obj in self._aci_objects:
                 obj_type = obj.get("type")
                 if obj_type:
                     self._class_counts[obj_type] += 1
                     self._by_type[obj_type].append(obj.get("attributes", {}))
+            self._profile_event("load_data_total", load_start, objects=len(self._aci_objects))
             return
 
         for dataset in self.datasets:
@@ -128,9 +172,21 @@ class CapacityAnalyzer:
             path = Path(path_value)
             if not path.exists():
                 continue
+            read_start = time.perf_counter()
             content = path.read_text(encoding="utf-8", errors="ignore")
+            read_ms = round((time.perf_counter() - read_start) * 1000, 2)
             fmt = dataset.get("format") or "json"
+            parse_start = time.perf_counter()
             parsed = parsers.parse_aci(content, fmt)
+            parse_ms = round((time.perf_counter() - parse_start) * 1000, 2)
+            if self._profile_enabled:
+                self._profile_events.append({
+                    "name": "dataset_parse",
+                    "dataset": path.name,
+                    "read_ms": read_ms,
+                    "parse_ms": parse_ms,
+                    "objects": len(parsed.get("objects", []))
+                })
             for obj in parsed.get("objects", []):
                 obj_type = obj.get("type")
                 attrs = obj.get("attributes", {})
@@ -163,6 +219,8 @@ class CapacityAnalyzer:
             if obj_type:
                 self._class_counts[obj_type] += 1
                 self._by_type[obj_type].append(obj.get("attributes", {}))
+        self._profile_event("load_data_total", load_start, objects=len(self._aci_objects))
+        self._write_profile()
 
     def _unique_count(self, obj_type: str) -> int:
         seen = set()
@@ -580,6 +638,9 @@ class CapacityAnalyzer:
         }
 
     def analyze(self) -> Dict[str, Any]:
+        if self._profile_enabled:
+            self._profile_events = []
+        analyze_start = time.perf_counter()
         self._load_data()
 
         by_role = self._get_fabric_nodes()
@@ -648,7 +709,7 @@ class CapacityAnalyzer:
             "endpoints_per_leaf": self._compute_headroom(endpoints, endpoints_per_leaf_limit),
         }
 
-        return {
+        analysis = {
             "summary": summary,
             "completeness": self.get_data_completeness(),
             "ports": ports,
@@ -673,6 +734,11 @@ class CapacityAnalyzer:
                 "linecard_recommendation": linecard_reco
             }
         }
+        self._profile_event("analyze_total", analyze_start)
+        if self._profile_enabled:
+            analysis["profile"] = self._profile_events
+            self._write_profile()
+        return analysis
 
     def summarize(self) -> Dict[str, Any]:
         """Lightweight summary for sidebar and global rollups."""
