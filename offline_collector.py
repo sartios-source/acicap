@@ -734,25 +734,49 @@ def main():
     else:
         classes = DEFAULT_ACI_CLASSES
 
+    def _alt_hosts(apic_host):
+        match = re.search(r"(.*?)(\d{3})$", apic_host)
+        if not match:
+            return []
+        prefix, suffix = match.group(1), match.group(2)
+        if suffix == "001":
+            return [f"{prefix}002", f"{prefix}003", f"{prefix}004"]
+        if suffix == "011":
+            return [f"{prefix}012", f"{prefix}013", f"{prefix}014"]
+        return []
+
+    def _is_failed(summary):
+        if not summary:
+            return True
+        if summary.get('imdata_count', 0) == 0 and summary.get('collection_status') == 'failed':
+            return True
+        return False
+
     def collect_for_host(apic_host):
-        host_output = os.path.join(args.output_dir, apic_host)
-        collector = APICCollector(
-            apic_host=apic_host,
-            username=apic_username,
-            password=apic_password,
-            output_dir=host_output,
-            log_level=args.log_level
-        )
-        summary = collector.collect(classes)
-        summary['fabric_name'] = apic_host
-        summary['description'] = ''
-        summary_path = os.path.join(host_output, 'collector_manifest.json')
-        try:
-            with open(summary_path, 'w', encoding='utf-8') as handle:
-                json.dump(summary, handle, indent=2)
-        except Exception:
-            pass
-        return apic_host, summary
+        candidates = [apic_host] + _alt_hosts(apic_host)
+        last_summary = None
+        for candidate in candidates:
+            host_output = os.path.join(args.output_dir, candidate)
+            collector = APICCollector(
+                apic_host=candidate,
+                username=apic_username,
+                password=apic_password,
+                output_dir=host_output,
+                log_level=args.log_level
+            )
+            summary = collector.collect(classes)
+            summary['fabric_name'] = candidate
+            summary['description'] = ''
+            summary_path = os.path.join(host_output, 'collector_manifest.json')
+            try:
+                with open(summary_path, 'w', encoding='utf-8') as handle:
+                    json.dump(summary, handle, indent=2)
+            except Exception:
+                pass
+            last_summary = summary
+            if not _is_failed(summary):
+                return candidate, summary
+        return apic_host, last_summary or {}
 
     final_status = 0
     max_threads = 1
