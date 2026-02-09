@@ -106,6 +106,27 @@ class CapacityAnalyzer:
             fmt = dataset.get("format") or "json"
             parsed = parsers.parse_aci(content, fmt)
             for obj in parsed.get("objects", []):
+                obj_type = obj.get("type")
+                attrs = obj.get("attributes", {})
+                dn = attrs.get("dn", "")
+                if obj_type in {"eqptExtCh", "eqptCh"}:
+                    if obj_type == "eqptExtCh" or ("extch" in dn or "fex-" in dn):
+                        obj_type = "eqptFex"
+                        obj["type"] = obj_type
+                if obj_type == "eqptFex":
+                    if not attrs.get("id"):
+                        match = re.search(r"extch-(\d+)", dn)
+                        if match:
+                            attrs["id"] = match.group(1)
+                        else:
+                            match = re.search(r"fex-(\d+)", dn)
+                            if match:
+                                attrs["id"] = match.group(1)
+                            else:
+                                node_match = re.search(r"node-(\d+)", dn)
+                                if node_match and int(node_match.group(1)) <= 200:
+                                    attrs["id"] = node_match.group(1)
+                    obj["attributes"] = attrs
                 self._aci_objects.append(obj)
         for obj in self._aci_objects:
             obj_type = obj.get("type")
