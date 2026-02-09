@@ -422,6 +422,33 @@ class CapacityAnalyzer:
             "per_spine_cards": dict(per_spine_cards),
         }
 
+    def _recommend_spine_linecard(self, uplink_speed: str, additional_ports_needed: int) -> Dict[str, Any]:
+        limits = self._load_hardware_limits()
+        linecards = limits.get("linecards", {})
+        candidates = []
+        for model, attrs in linecards.items():
+            if not attrs.get("aci_spine_supported", True):
+                continue
+            speed = str(attrs.get("speed", "")).upper()
+            if uplink_speed and speed and uplink_speed.upper() != speed:
+                continue
+            ports = int(attrs.get("spine_ports", 0))
+            if ports > 0:
+                candidates.append((ports, model, speed))
+        if not candidates:
+            return {"model": None, "count": None, "reason": "No matching spine linecard for uplink speed"}
+        candidates.sort(reverse=True)
+        ports, model, speed = candidates[0]
+        needed = 0
+        if additional_ports_needed > 0:
+            needed = (additional_ports_needed + ports - 1) // ports
+        return {
+            "model": model,
+            "card_ports": ports,
+            "speed": speed,
+            "count": needed
+        }
+
     def _infer_uplinks_per_leaf(self, default_value: int) -> int:
         spine_names = {
             (n.get("name") or "").lower()
@@ -566,8 +593,11 @@ class CapacityAnalyzer:
         max_epg_per_tenant = max((row.get("epgs", 0) for row in tenant_rollups.get("rows", [])), default=0)
         default_uplinks = int(os.environ.get("UPLINKS_PER_LEAF_DEFAULT", "2"))
         uplinks_per_leaf = int(self.fabric_data.get("uplinks_per_leaf") or 0) or self._infer_uplinks_per_leaf(default_uplinks)
+        uplink_speed = str(self.fabric_data.get("uplink_speed") or "100G").upper()
         leafs_supported_by_spines = (spine_capacity["total_spine_ports"] // uplinks_per_leaf) if uplinks_per_leaf else 0
         spine_leaf_headroom = max(leafs_supported_by_spines - summary["leafs"], 0)
+        additional_ports_needed = max((summary["leafs"] * uplinks_per_leaf) - spine_capacity["total_spine_ports"], 0)
+        linecard_reco = self._recommend_spine_linecard(uplink_speed, additional_ports_needed)
         scale_profile = (self.fabric_data.get("scale_profile") or "LSE2").upper()
         l3outs_limit = per_fabric.get("l3outs_per_fabric_lse") if scale_profile != "ALE" else per_fabric.get("l3outs_per_fabric_ale")
         external_epgs_limit = per_fabric.get("external_epgs_per_fabric_lse") if scale_profile != "ALE" else per_fabric.get("external_epgs_per_fabric_ale")
@@ -619,8 +649,11 @@ class CapacityAnalyzer:
             "spine_capacity": {
                 **spine_capacity,
                 "uplinks_per_leaf": uplinks_per_leaf,
+                "uplink_speed": uplink_speed,
                 "leafs_supported_by_spines": leafs_supported_by_spines,
-                "remaining_leafs_before_linecards": spine_leaf_headroom
+                "remaining_leafs_before_linecards": spine_leaf_headroom,
+                "additional_ports_needed": additional_ports_needed,
+                "linecard_recommendation": linecard_reco
             }
         }
 

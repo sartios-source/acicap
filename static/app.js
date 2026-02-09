@@ -98,6 +98,16 @@ async function saveEndpointProfile(name, value) {
   if (!data.success) alert(data.error || 'Update failed');
 }
 
+async function saveUplinkSpeed(name, value) {
+  const res = await fetch(`/fabrics/${name}/meta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uplink_speed: value })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) alert(data.error || 'Update failed');
+}
+
 function toggleFabric(name) {
   const panel = document.getElementById(`detail-${name}`);
   if (!panel) return;
@@ -175,11 +185,31 @@ async function loadFabric(name) {
         </div>
       </div>
       <div class=\"detail-block\">
+        <h4>Recommended Spine Card</h4>
+        <div class=\"limit-grid\">
+          <div>Uplink Speed</div><div>${data.spine_capacity?.uplink_speed || 'n/a'}</div><div>Assumed</div>
+          <div>Card Model</div><div>${data.spine_capacity?.linecard_recommendation?.model || 'n/a'}</div><div>${data.spine_capacity?.linecard_recommendation?.speed || ''}</div>
+          <div>Cards Needed</div><div>${data.spine_capacity?.linecard_recommendation?.count ?? 'n/a'}</div><div>For headroom</div>
+        </div>
+      </div>
+      <div class=\"detail-block\">
         <h4>Actions</h4>
         <div class=\"panel-actions\">
           <button class=\"ghost small\" onclick=\"selectFabric('${name}')\">Focus</button>
           <a class=\"primary small\" href=\"/api/export/excel/${name}\">Export Excel</a>
           <button class=\"danger small\" onclick=\"deleteFabric('${name}')\">Delete</button>
+        </div>
+        <div class=\"meta-row\" style=\"margin-top:8px;\">
+          <label>Uplinks per leaf</label>
+          <input type=\"number\" min=\"1\" max=\"16\" placeholder=\"auto\" onblur=\"saveUplinks('${name}', this.value)\">
+        </div>
+        <div class=\"meta-row\">
+          <label>Uplink speed</label>
+          <select onchange=\"saveUplinkSpeed('${name}', this.value)\">
+            <option value=\"100G\">100G</option>
+            <option value=\"40G\">40G</option>
+            <option value=\"400G\">400G</option>
+          </select>
         </div>
       </div>
     </div>

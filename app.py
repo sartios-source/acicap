@@ -185,6 +185,7 @@ def update_fabric_meta(fabric_name):
     fabric_data = fm.get_fabric_data(fabric_name)
     description = str(data.get("description", fabric_data.get("description", ""))).strip()
     uplinks_per_leaf = data.get("uplinks_per_leaf")
+    uplink_speed = data.get("uplink_speed")
     scale_profile = data.get("scale_profile")
     endpoint_profile = data.get("endpoint_profile")
     fabric_data["description"] = description
@@ -200,6 +201,8 @@ def update_fabric_meta(fabric_name):
         fabric_data["scale_profile"] = str(scale_profile).upper()
     if endpoint_profile:
         fabric_data["endpoint_profile"] = str(endpoint_profile).lower()
+    if uplink_speed:
+        fabric_data["uplink_speed"] = str(uplink_speed).upper()
     fm.save_fabric_metadata(fabric_name, fabric_data)
     ANALYZER_CACHE.pop(fabric_name, None)
     return jsonify({"success": True})
