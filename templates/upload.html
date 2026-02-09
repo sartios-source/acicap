@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Data{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Upload ACI Data</h2>
+    <a class="ghost" href="{{ url_for('download_offline_collector') }}">Download Offline Collector</a>
+  </div>
+  {% if not current_fabric %}
+    <div class="notice warning">Select or create a fabric before uploading files.</div>
+  {% else %}
+    <div class="upload-grid">
+      <div class="upload-card">
+        <h3>JSON Upload</h3>
+        <p>Upload APIC JSON exports or collector output.</p>
+        <input id="aci-file" type="file" accept=".json">
+        <button class="primary" onclick="uploadAci()">Upload File</button>
+      </div>
+      <div class="upload-card">
+        <h3>Collector ZIP Import</h3>
+        <p>Import multi-fabric ZIP produced by the offline collector.</p>
+        <input id="zip-file" type="file" accept=".zip">
+        <button class="primary" onclick="importZip()">Import ZIP</button>
+      </div>
+      <div class="upload-card">
+        <h3>Export Excel</h3>
+        <p>Download single-fabric or multi-fabric Excel exports.</p>
+        <button class="ghost" onclick="exportSingle()">Export Current Fabric</button>
+        <button class="primary" onclick="exportMulti()">Export All Fabrics</button>
+      </div>
+    </div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Datasets</h3>
+  <div class="table">
+    <div class="table-row head">
+      <div>Filename</div>
+      <div>Type</div>
+      <div>Uploaded</div>
+      <div>Size</div>
+    </div>
+    {% for dataset in datasets %}
+      <div class="table-row">
+        <div>{{ dataset.filename }}</div>
+        <div>{{ dataset.type }}</div>
+        <div>{{ dataset.uploaded }}</div>
+        <div>{{ dataset.size }}</div>
+      </div>
+    {% else %}
+      <div class="table-row empty">No datasets uploaded yet.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function uploadAci() {
+  const file = document.getElementById('aci-file').files[0];
+  if (!file) return alert('Select a JSON file');
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch('/upload', { method: 'POST', body: formData });
+  const data = await res.json();
+  if (!data.success) return alert(data.error || 'Upload failed');
+  location.reload();
+}
+
+async function importZip() {
+  const file = document.getElementById('zip-file').files[0];
+  if (!file) return alert('Select a ZIP file');
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch('/api/collector/import', { method: 'POST', body: formData });
+  const data = await res.json();
+  if (!data.success) return alert(data.error || 'Import failed');
+  location.reload();
+}
+
+function exportSingle() {
+  window.location.href = '/api/export/excel/{{ current_fabric }}';
+}
+
+async function exportMulti() {
+  const res = await fetch('/api/export/excel_multi', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) });
+  if (!res.ok) return alert('Export failed');
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'multi_fabric_capacity.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}
