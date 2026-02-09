@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>ACI Capacity Report - {{ fabric_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      body {
+        background: #f6f8fb;
+      }
+      .report-header {
+        background: linear-gradient(120deg, #0b4f8a, #2aa9e9);
+        color: white;
+        border-radius: 16px;
+        padding: 24px;
+      }
+      .kpi-card {
+        border-radius: 14px;
+      }
+      .section-card {
+        border-radius: 16px;
+      }
+      .print-only {
+        display: none;
+      }
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+        .print-only {
+          display: block;
+        }
+        body {
+          background: #ffffff;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-4">
+      <div class="report-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+          <div>
+            <h1 class="h3 mb-1">Executive Capacity Report</h1>
+            <div class="small">Fabric: {{ fabric_name }}</div>
+            <div class="small">APIC {{ limits.cluster_size }}-node - {{ limits.release }}</div>
+          </div>
+          <div class="no-print d-flex gap-2">
+            <a class="btn btn-light btn-sm" href="{{ url_for('index') }}">Back to Dashboard</a>
+            <button class="btn btn-outline-light btn-sm" onclick="window.print()">Print / Save PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+          <div class="card kpi-card">
+            <div class="card-body">
+              <div class="text-muted small">Leafs</div>
+              <div class="h4 mb-0">{{ summary.leafs }}</div>
+              <div class="text-muted small">Spines {{ summary.spines }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card kpi-card">
+            <div class="card-body">
+              <div class="text-muted small">Tenants</div>
+              <div class="h4 mb-0">{{ summary.tenants }}</div>
+              <div class="text-muted small">VRFs {{ summary.vrfs }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card kpi-card">
+            <div class="card-body">
+              <div class="text-muted small">EPGs</div>
+              <div class="h4 mb-0">{{ summary.epgs }}</div>
+              <div class="text-muted small">BDs {{ summary.bds }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card kpi-card">
+            <div class="card-body">
+              <div class="text-muted small">Ports</div>
+              <div class="h4 mb-0">{{ ports.total }}</div>
+              <div class="text-muted small">Ports w/ EPG {{ ports.ports_with_epg }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+          <div class="card section-card">
+            <div class="card-body">
+              <h5 class="card-title">Key Limits & Headroom</h5>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      <th>Current</th>
+                      <th>Max</th>
+                      <th>Remaining</th>
+                      <th>%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in headroom_rows %}
+                    <tr>
+                      <td>{{ row.label }}</td>
+                      <td>{{ row.current }}</td>
+                      <td>{{ row.maximum }}</td>
+                      <td>{{ row.remaining }}</td>
+                      <td>{{ row.pct }}%</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-5">
+          <div class="card section-card">
+            <div class="card-body">
+              <h5 class="card-title">Spine Capacity</h5>
+              <div class="d-flex justify-content-between"><span>Uplink speed</span><span>{{ spine.uplink_speed }}</span></div>
+              <div class="d-flex justify-content-between"><span>Leafs supported</span><span>{{ spine.leafs_supported_by_spines }}</span></div>
+              <div class="d-flex justify-content-between"><span>Remaining leafs</span><span>{{ spine.remaining_leafs_before_linecards }}</span></div>
+              <div class="d-flex justify-content-between"><span>Recommended card</span><span>{{ spine.linecard_recommendation.model }}</span></div>
+              <div class="d-flex justify-content-between"><span>Cards needed</span><span>{{ spine.linecard_recommendation.count }}</span></div>
+            </div>
+          </div>
+          <div class="card section-card mt-3">
+            <div class="card-body">
+              <h5 class="card-title">Dataset Completeness</h5>
+              <div class="d-flex justify-content-between"><span>Score</span><span>{{ completeness.completeness_score }}%</span></div>
+              <div class="text-muted small">Missing required: {{ completeness.missing_required | join(', ') if completeness.missing_required else 'none' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card section-card mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Insights</h5>
+          <div class="row g-3">
+            {% for insight in insights %}
+            <div class="col-12 col-lg-6">
+              <div class="border rounded-3 p-3 h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div class="fw-semibold">{{ insight.title }}</div>
+                  <span class="badge bg-{{ insight.severity }}">{{ insight.severity }}</span>
+                </div>
+                <div class="text-muted small">{{ insight.detail }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card section-card">
+        <div class="card-body">
+          <h5 class="card-title">Top Tenants</h5>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Tenant</th><th>VRFs</th><th>BDs</th><th>EPGs</th><th>Subnets</th></tr></thead>
+              <tbody>
+                {% for row in tenant_rows %}
+                <tr>
+                  <td>{{ row.tenant }}</td>
+                  <td>{{ row.vrfs }}</td>
+                  <td>{{ row.bds }}</td>
+                  <td>{{ row.epgs }}</td>
+                  <td>{{ row.subnets }}</td>
+                </tr>
+                {% endfor %}
+                {% if tenant_rows|length == 0 %}
+                <tr><td colspan="5" class="text-muted text-center">No tenant data</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="print-only text-muted small mt-4">Generated by ACI Capacity Atlas</div>
+    </div>
+  </body>
+</html>

@@ -538,5 +538,96 @@ def export_excel_multi():
     return send_file(output_path, as_attachment=True, download_name=output_path.name)
 
 
+def _compute_insights(analysis: Dict[str, Any]) -> list:
+    insights = []
+    headroom = analysis.get("headroom", {})
+    completeness = analysis.get("completeness", {})
+    spine = analysis.get("spine_capacity", {})
+    ports = analysis.get("ports", {})
+
+    def add(severity, title, detail):
+        insights.append({"severity": severity, "title": title, "detail": detail})
+
+    def headroom_check(key, label, threshold):
+        row = headroom.get(key) or {}
+        pct = row.get("pct")
+        if pct is None:
+            return
+        if pct >= threshold:
+            add("warning", f"{label} near limit", f"{row.get('current', 0)} / {row.get('maximum', 'n/a')} used ({pct}%).")
+
+    headroom_check("leafs", "Leaf switches", 85)
+    headroom_check("spines", "Spine switches", 85)
+    headroom_check("tenants", "Tenants", 90)
+    headroom_check("vrfs", "VRFs", 90)
+    headroom_check("bds", "Bridge domains", 90)
+    headroom_check("epgs", "EPGs", 90)
+    headroom_check("contracts", "Contracts", 90)
+    headroom_check("ports", "Physical ports", 85)
+
+    remaining_leafs = spine.get("remaining_leafs_before_linecards")
+    if isinstance(remaining_leafs, int) and remaining_leafs <= 2:
+        add("danger", "Spine port capacity tight", f"Only {remaining_leafs} leaf(s) remaining before more spine ports are required.")
+
+    if ports.get("total") and ports.get("ports_with_epg") is not None:
+        pct = round((ports.get("ports_with_epg", 0) / max(ports.get("total", 1), 1)) * 100)
+        if pct >= 90:
+            add("warning", "High port utilization", f"{ports.get('ports_with_epg', 0)} / {ports.get('total', 0)} ports assigned to EPGs ({pct}%).")
+
+    missing_required = completeness.get("missing_required") or []
+    missing_optional = completeness.get("missing_optional") or []
+    if missing_required:
+        add("danger", "Missing required datasets", f"Missing: {', '.join(missing_required)}")
+    elif missing_optional:
+        add("primary", "Optional datasets missing", f"Missing: {', '.join(missing_optional)}")
+
+    if not insights:
+        add("primary", "No critical risks detected", "Current dataset shows healthy headroom across key limits.")
+    return insights
+
+
+@app.route("/report/<fabric_name>")
+def report_fabric(fabric_name):
+    fabric_name = validate_fabric_name(fabric_name)
+    analyzer = _get_analyzer(fabric_name)
+    analysis = analyzer.analyze()
+    headroom = analysis.get("headroom", {})
+    headroom_defs = [
+        ("leafs", "Leaf switches"),
+        ("spines", "Spine switches"),
+        ("leafs_by_spine_ports", "Leafs by spine ports"),
+        ("tenants", "Tenants"),
+        ("vrfs", "VRFs"),
+        ("bds", "Bridge domains"),
+        ("epgs", "EPGs"),
+        ("contracts", "Contracts"),
+        ("fex", "FEX"),
+        ("ports", "Physical ports"),
+    ]
+    headroom_rows = []
+    for key, label in headroom_defs:
+        row = headroom.get(key) or {}
+        headroom_rows.append({
+            "label": label,
+            "current": row.get("current", 0),
+            "maximum": row.get("maximum", "n/a"),
+            "remaining": row.get("remaining", "n/a"),
+            "pct": row.get("pct", "n/a"),
+        })
+    insights = _compute_insights(analysis)
+    return render_template(
+        "report.html",
+        fabric_name=fabric_name,
+        summary=analysis.get("summary", {}),
+        ports=analysis.get("ports", {}),
+        limits=analysis.get("cisco_limits", {}),
+        headroom_rows=headroom_rows,
+        spine=analysis.get("spine_capacity", {}),
+        completeness=analysis.get("completeness", {}),
+        tenant_rows=(analysis.get("tenants", {}).get("rows") or [])[:10],
+        insights=insights,
+    )
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001, threaded=True, use_reloader=False)

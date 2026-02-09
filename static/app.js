@@ -155,6 +155,90 @@ function renderUtilRows(rows, keyLabel) {
   }).join('');
 }
 
+function computeInsights(data) {
+  const insights = [];
+  const headroom = data.headroom || {};
+  const completeness = data.completeness || {};
+  const spine = data.spine_capacity || {};
+  const insights = computeInsights(data);
+  const ports = data.ports || {};
+
+  const add = (severity, title, detail) => {
+    insights.push({ severity, title, detail });
+  };
+
+  const headroomCheck = (key, label, threshold = 85) => {
+    const row = headroom[key];
+    if (!row || row.pct == null) return;
+    if (row.pct >= threshold) {
+      add('warning', `${label} near limit`, `${row.current} / ${row.maximum} used (${row.pct}%).`);
+    }
+  };
+
+  headroomCheck('leafs', 'Leaf switches', 85);
+  headroomCheck('spines', 'Spine switches', 85);
+  headroomCheck('tenants', 'Tenants', 90);
+  headroomCheck('vrfs', 'VRFs', 90);
+  headroomCheck('bds', 'Bridge domains', 90);
+  headroomCheck('epgs', 'EPGs', 90);
+  headroomCheck('contracts', 'Contracts', 90);
+  headroomCheck('ports', 'Physical ports', 85);
+
+  if (typeof spine.remaining_leafs_before_linecards === 'number' && spine.remaining_leafs_before_linecards <= 2) {
+    add('critical', 'Spine port capacity tight', `Only ${spine.remaining_leafs_before_linecards} leaf(s) remaining before more spine ports are required.`);
+  }
+
+  if (ports.total && ports.ports_with_epg != null) {
+    const pct = Math.round((ports.ports_with_epg / Math.max(ports.total, 1)) * 100);
+    if (pct >= 90) {
+      add('warning', 'High port utilization', `${ports.ports_with_epg} / ${ports.total} ports assigned to EPGs (${pct}%).`);
+    }
+  }
+
+  if ((completeness.missing_required || []).length) {
+    add('critical', 'Missing required datasets', `Missing: ${(completeness.missing_required || []).join(', ')}`);
+  } else if ((completeness.missing_optional || []).length) {
+    add('info', 'Optional datasets missing', `Missing: ${(completeness.missing_optional || []).join(', ')}`);
+  }
+
+  if (insights.length === 0) {
+    add('info', 'No critical risks detected', 'Current dataset shows healthy headroom across key limits.');
+  }
+  return insights;
+}
+
+function renderInsightCards(insights) {
+  const badgeMap = {
+    critical: 'text-bg-danger',
+    warning: 'text-bg-warning',
+    info: 'text-bg-primary'
+  };
+  return insights.map((item) => `
+    <div class="col-12 col-lg-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="card-title mb-0">${item.title}</h6>
+            <span class="badge ${badgeMap[item.severity] || 'text-bg-secondary'} text-uppercase">${item.severity}</span>
+          </div>
+          <div class="text-muted small">${item.detail}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterTableRows(inputEl, tableId) {
+  const term = (inputEl.value || '').toLowerCase();
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const rows = table.querySelectorAll('tbody tr');
+  rows.forEach((row) => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(term) ? '' : 'none';
+  });
+}
+
 async function loadFabricSummaryDetail(name, targetId) {
   const target = document.getElementById(targetId);
   if (!target || target.dataset.loaded === 'true') return;
@@ -323,6 +407,9 @@ async function loadFabric(name) {
             <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-util" type="button" role="tab">Utilization</button>
           </li>
           <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-insights" type="button" role="tab">Insights</button>
+          </li>
+          <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-tenants" type="button" role="tab">Tenants</button>
           </li>
           <li class="nav-item" role="presentation">
@@ -385,8 +472,9 @@ async function loadFabric(name) {
                 <div class="card h-100">
                   <div class="card-body">
                     <h6 class="card-title">Leaf Ports</h6>
+                    <input class="form-control form-control-sm mb-2" placeholder="Filter leaf..." oninput="filterTableRows(this, 'leaf-util-table')">
                     <div class="table-responsive">
-                      <table class="table table-sm mb-0">
+                      <table class="table table-sm mb-0" id="leaf-util-table">
                         <thead><tr><th>Leaf</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead>
                         <tbody>${renderUtilRows(util.leafs || [], 'node')}</tbody>
                       </table>
@@ -398,8 +486,9 @@ async function loadFabric(name) {
                 <div class="card h-100">
                   <div class="card-body">
                     <h6 class="card-title">Spine Ports</h6>
+                    <input class="form-control form-control-sm mb-2" placeholder="Filter spine..." oninput="filterTableRows(this, 'spine-util-table')">
                     <div class="table-responsive">
-                      <table class="table table-sm mb-0">
+                      <table class="table table-sm mb-0" id="spine-util-table">
                         <thead><tr><th>Spine</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead>
                         <tbody>${renderUtilRows(util.spines || [], 'node')}</tbody>
                       </table>
@@ -411,8 +500,9 @@ async function loadFabric(name) {
                 <div class="card h-100">
                   <div class="card-body">
                     <h6 class="card-title">FEX Ports</h6>
+                    <input class="form-control form-control-sm mb-2" placeholder="Filter FEX..." oninput="filterTableRows(this, 'fex-util-table')">
                     <div class="table-responsive">
-                      <table class="table table-sm mb-0">
+                      <table class="table table-sm mb-0" id="fex-util-table">
                         <thead><tr><th>FEX</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th></tr></thead>
                         <tbody>${renderUtilRows(util.fex || [], 'fex')}</tbody>
                       </table>
@@ -423,12 +513,19 @@ async function loadFabric(name) {
             </div>
           </div>
 
+          <div class="tab-pane fade" id="tab-insights" role="tabpanel">
+            <div class="row g-3">
+              ${renderInsightCards(insights)}
+            </div>
+          </div>
+
           <div class="tab-pane fade" id="tab-tenants" role="tabpanel">
             <div class="card">
               <div class="card-body">
                 <h6 class="card-title">Top Tenants by Scale</h6>
+                <input class="form-control form-control-sm mb-2" placeholder="Filter tenant..." oninput="filterTableRows(this, 'tenant-table')">
                 <div class="table-responsive">
-                  <table class="table table-sm mb-0">
+                  <table class="table table-sm mb-0" id="tenant-table">
                     <thead><tr><th>Tenant</th><th>VRFs</th><th>BDs</th><th>EPGs</th><th>Subnets</th></tr></thead>
                     <tbody>${tenantRows}</tbody>
                   </table>
@@ -443,6 +540,7 @@ async function loadFabric(name) {
                 <div class="d-flex flex-wrap gap-2 mb-3">
                   <button class="btn btn-outline-primary" onclick="selectFabric('${name}')">Focus</button>
                   <a class="btn btn-primary" href="/api/export/excel/${name}">Export Excel</a>
+                  <a class="btn btn-outline-primary" href="/report/${name}" target="_blank">Executive PDF</a>
                   <button class="btn btn-outline-secondary" onclick="rebuildCache('${name}')">Rebuild Cache</button>
                   <button class="btn btn-outline-danger" onclick="deleteFabric('${name}')">Delete</button>
                 </div>
