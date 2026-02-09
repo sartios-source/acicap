@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import shutil
-import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -167,14 +166,17 @@ def import_collector_zip():
     if not filename.lower().endswith(".zip"):
         return jsonify({"error": "Only .zip files are supported"}), 400
 
-    temp_dir = tempfile.mkdtemp(prefix="acicap_import_")
-    zip_path = os.path.join(temp_dir, filename)
+    base_tmp = BASE_DIR / "tmp_import"
+    base_tmp.mkdir(parents=True, exist_ok=True)
+    temp_dir = base_tmp / f"acicap_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    zip_path = os.path.join(str(temp_dir), filename)
     upload_file.save(zip_path)
     imported = []
     try:
         with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(temp_dir)
-        for root, _, files in os.walk(temp_dir):
+            zf.extractall(str(temp_dir))
+        for root, _, files in os.walk(str(temp_dir)):
             if "collector_manifest.json" not in files:
                 continue
             manifest_path = os.path.join(root, "collector_manifest.json")
@@ -207,7 +209,7 @@ def import_collector_zip():
             ANALYZER_CACHE.pop(fabric_name, None)
         return jsonify({"success": True, "fabrics": sorted(list(set(imported)))})
     finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        shutil.rmtree(str(temp_dir), ignore_errors=True)
 
 
 @app.route("/download_offline_collector")

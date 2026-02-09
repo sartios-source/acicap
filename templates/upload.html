@@ -23,6 +23,12 @@
         <p>Import multi-fabric ZIP produced by the offline collector.</p>
         <input id="zip-file" type="file" accept=".zip">
         <button class="primary" onclick="importZip()">Import ZIP</button>
+        <div class="progress-row" style="margin-top:12px;">
+          <div class="progress-bar">
+            <div id="zip-progress" class="progress-fill"></div>
+          </div>
+          <div id="zip-progress-label" class="progress-meta">0%</div>
+        </div>
       </div>
       <div class="upload-card">
         <h3>Export Excel</h3>
@@ -75,10 +81,33 @@ async function importZip() {
   if (!file) return alert('Select a ZIP file');
   const formData = new FormData();
   formData.append('file', file);
-  const res = await fetch('/api/collector/import', { method: 'POST', body: formData });
-  const data = await res.json();
-  if (!data.success) return alert(data.error || 'Import failed');
-  location.reload();
+
+  const progressBar = document.getElementById('zip-progress');
+  const progressLabel = document.getElementById('zip-progress-label');
+  progressBar.style.width = '0%';
+  progressLabel.textContent = '0%';
+
+  const xhr = new XMLHttpRequest();
+  xhr.upload.addEventListener('progress', (evt) => {
+    if (evt.lengthComputable) {
+      const pct = Math.round((evt.loaded / evt.total) * 100);
+      progressBar.style.width = `${pct}%`;
+      progressLabel.textContent = `${pct}%`;
+    }
+  });
+  xhr.onreadystatechange = () => {
+    if (xhr.readyState === 4) {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const data = JSON.parse(xhr.responseText || '{}');
+        if (!data.success) return alert(data.error || 'Import failed');
+        location.reload();
+      } else {
+        alert('Import failed');
+      }
+    }
+  };
+  xhr.open('POST', '/api/collector/import', true);
+  xhr.send(formData);
 }
 
 function exportSingle() {
