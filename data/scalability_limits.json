@@ -43,6 +43,120 @@
       "endpoints_per_leaf_high_lpm": 32000,
       "endpoints_per_leaf_high_policy_lse2": 12000,
       "physical_ports": 24000
+    },
+    "other_limits": {
+      "vmm": {
+        "endpoints_per_vds": 10000,
+        "endpoints_per_vcenter": 10000,
+        "microsegment_epgs_vds": 400,
+        "vcenter_6_0": 500,
+        "vcenter_6_5": 1000,
+        "scvmm_controllers_per_domain": 5,
+        "scvmm_domains": 25,
+        "epgs_per_scvmm_domain": 3000,
+        "epgs_all_scvmm_domains": 9000,
+        "ep_vnics_per_hyperv_host": 100,
+        "ep_vnics_per_scvmm": 10000,
+        "hyperv_hosts": 64,
+        "logical_switch_per_host": 1,
+        "uplinks_per_logical_switch": 4,
+        "microsoft_micro_segmentation": 1000
+      },
+      "windows_azure_pack": {
+        "subscriptions": 1000,
+        "plans_per_instance": 150,
+        "users_per_plan": 200,
+        "subscriptions_per_user": 3,
+        "vm_networks_per_user": 100,
+        "vm_networks_per_instance": 3000,
+        "tenant_shared_services_providers": 40,
+        "consumers_of_shared_services": 40,
+        "vips_citrix": 50,
+        "vips_f5": 50
+      },
+      "l4_l7": {
+        "logical_device_clusters": 1200,
+        "graph_instances": 1000,
+        "device_clusters_per_tenant": 30,
+        "interfaces_per_device_cluster": "any",
+        "graph_instances_per_device_cluster": 500,
+        "asa_supported": true,
+        "citrix_one_arm_supported": true,
+        "f5_one_arm_supported": true
+      },
+      "ad_tacacs_rbac": {
+        "auth_domains": 4,
+        "auth_domains_max_per_server_type": 16,
+        "login_domains": 15,
+        "security_domains_per_apic": 15,
+        "security_domains_tenant_resides": 4,
+        "priorities": 4,
+        "priorities_per_domain": 16,
+        "shell_profiles_returned": 4,
+        "shell_profiles_domains_total": 32,
+        "users_local": 8000,
+        "users_remote": 8000,
+        "simultaneous_logins": 500
+      },
+      "mini_aci": {
+        "spines": 2,
+        "leafs": 4,
+        "pods": 1,
+        "tenants": 25,
+        "vrfs": 25,
+        "bds": 1000,
+        "epgs": 1000,
+        "endpoints": 20000,
+        "contracts": 2000,
+        "service_graph_instances": 20,
+        "l4_l7_logical_device_clusters": "3 physical or 10 virtual",
+        "multicast_groups": 200,
+        "bgp_ospf_sessions": 25
+      },
+      "ucsm": {
+        "ucsm_per_apic_cluster": 12,
+        "vmm_domains_per_ucsm": 4,
+        "vlans_pvlan_per_ucsm": 4000,
+        "vnic_templates_per_ucsm": 16
+      },
+      "qos": {
+        "custom_dscp": 7,
+        "custom_dscp_dot1p": 7,
+        "custom_dot1p": 38,
+        "custom_contract": 38
+      },
+      "ptp": {
+        "leafs_per_spine_ptp_enabled": {
+          "ieee_1588": 128,
+          "aes67": 40,
+          "telecom_g8275_1": null
+        },
+        "switches_per_tier1_leaf_ptp_enabled": {
+          "ieee_1588": 16,
+          "aes67": 16,
+          "telecom_g8275_1": null
+        },
+        "access_ports_ptp_enabled_per_leaf": {
+          "ieee_1588": 25,
+          "aes67": 24,
+          "telecom_g8275_1": 25
+        },
+        "ptp_peers_per_access_port": {
+          "multicast_dynamic_master": 2,
+          "unicast_master": 1
+        },
+        "ptp_peers_per_leaf": {
+          "ieee_1588": 26,
+          "aes67": 26,
+          "telecom_g8275_1": 25
+        }
+      },
+      "netflow": {
+        "exporters_per_leaf": 2,
+        "monitor_policies_bd_per_leaf": 100,
+        "monitor_policies_l3out_per_leaf": 120,
+        "records_per_collect_interval": 20000
+      }
     }
   }
 }
