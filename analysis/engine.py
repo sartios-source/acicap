@@ -346,6 +346,13 @@ class CapacityAnalyzer:
             return {}
         return json.loads(limits_path.read_text(encoding="utf-8"))
 
+    @lru_cache(maxsize=4)
+    def _load_hardware_limits(self) -> Dict[str, Any]:
+        limits_path = Path(__file__).parent.parent / "data" / "hardware_limits_9500.json"
+        if not limits_path.exists():
+            return {}
+        return json.loads(limits_path.read_text(encoding="utf-8"))
+
     def _get_cisco_limits(self) -> Dict[str, Any]:
         release = self._detect_apic_release()
         cluster_size = self._detect_apic_cluster_size()
@@ -369,6 +376,35 @@ class CapacityAnalyzer:
         pct = round((current / maximum) * 100, 1) if maximum else None
         return {"current": current, "maximum": maximum, "remaining": remaining, "pct": pct}
 
+    def _get_spine_port_capacity(self) -> Dict[str, Any]:
+        limits = self._load_hardware_limits()
+        linecards = limits.get("linecards", {})
+        fabric_nodes = {n.get("id"): n for n in self._by_type.get("fabricNode", []) if n.get("id")}
+        spine_ids = {
+            str(n.get("id")) for n in self._by_type.get("fabricNode", [])
+            if (n.get("role") or "").lower() == "spine"
+        }
+        per_spine_ports = defaultdict(int)
+        per_spine_cards = defaultdict(list)
+        for lc in self._by_type.get("eqptLC", []):
+            model = lc.get("model") or lc.get("name") or ""
+            dn = lc.get("dn", "")
+            node_match = re.search(r"node-(\\d+)", dn)
+            node_id = node_match.group(1) if node_match else lc.get("id")
+            if not node_id or str(node_id) not in spine_ids:
+                continue
+            normalized = model.strip().upper()
+            if normalized in linecards:
+                ports = int(linecards[normalized].get("spine_ports", 0))
+                per_spine_ports[str(node_id)] += ports
+                per_spine_cards[str(node_id)].append(normalized)
+        total_ports = sum(per_spine_ports.values())
+        return {
+            "total_spine_ports": total_ports,
+            "per_spine_ports": dict(per_spine_ports),
+            "per_spine_cards": dict(per_spine_cards),
+        }
+
     def analyze(self) -> Dict[str, Any]:
         self._load_data()
 
@@ -390,11 +426,15 @@ class CapacityAnalyzer:
             "contracts": self._unique_count("vzBrCP"),
         }
         ports = self._get_port_stats()
+        spine_capacity = self._get_spine_port_capacity()
         limits = self._get_cisco_limits()
         per_cluster = limits.get("per_cluster", {})
         per_fabric = limits.get("per_fabric", {})
         per_tenant_epg_limit = per_fabric.get("epgs_per_tenant_multi") if summary["tenants"] > 1 else per_fabric.get("epgs_per_tenant_single")
         max_epg_per_tenant = max((row.get("epgs", 0) for row in tenant_rollups.get("rows", [])), default=0)
+        uplinks_per_leaf = int(self.fabric_data.get("uplinks_per_leaf") or 0) or int(os.environ.get("UPLINKS_PER_LEAF_DEFAULT", "2"))
+        leafs_supported_by_spines = (spine_capacity["total_spine_ports"] // uplinks_per_leaf) if uplinks_per_leaf else 0
+        spine_leaf_headroom = max(leafs_supported_by_spines - summary["leafs"], 0)
         headroom = {
             "leafs": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches")),
             "leafs_per_pod": self._compute_headroom(summary["leafs"], per_cluster.get("leaf_switches_per_pod")),
@@ -407,6 +447,7 @@ class CapacityAnalyzer:
             "fex": self._compute_headroom(summary["fex"], per_fabric.get("fexs")),
             "ports": self._compute_headroom(ports.get("total", 0), per_fabric.get("physical_ports")),
             "epgs_per_tenant": self._compute_headroom(max_epg_per_tenant, per_tenant_epg_limit),
+            "leafs_by_spine_ports": self._compute_headroom(summary["leafs"], leafs_supported_by_spines)
         }
 
         return {
@@ -420,5 +461,11 @@ class CapacityAnalyzer:
             "vpc": self._get_vpc_scale(),
             "l3out": self._get_l3out_scale(),
             "cisco_limits": limits,
-            "headroom": headroom
+            "headroom": headroom,
+            "spine_capacity": {
+                **spine_capacity,
+                "uplinks_per_leaf": uplinks_per_leaf,
+                "leafs_supported_by_spines": leafs_supported_by_spines,
+                "remaining_leafs_before_linecards": spine_leaf_headroom
+            }
         }

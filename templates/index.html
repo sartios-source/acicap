@@ -113,6 +113,7 @@
               <div class="limit-grid">
                 <div>Leafs</div><div>{{ item.analysis.headroom.leafs.current }} / {{ item.analysis.headroom.leafs.maximum }}</div><div>{{ item.analysis.headroom.leafs.remaining }} left</div>
                 <div>Spines</div><div>{{ item.analysis.headroom.spines.current }} / {{ item.analysis.headroom.spines.maximum }}</div><div>{{ item.analysis.headroom.spines.remaining }} left</div>
+                <div>Leafs by Spine Ports</div><div>{{ item.analysis.headroom.leafs_by_spine_ports.current }} / {{ item.analysis.headroom.leafs_by_spine_ports.maximum }}</div><div>{{ item.analysis.headroom.leafs_by_spine_ports.remaining }} left</div>
                 <div>Tenants</div><div>{{ item.analysis.headroom.tenants.current }} / {{ item.analysis.headroom.tenants.maximum }}</div><div>{{ item.analysis.headroom.tenants.remaining }} left</div>
                 <div>VRFs</div><div>{{ item.analysis.headroom.vrfs.current }} / {{ item.analysis.headroom.vrfs.maximum }}</div><div>{{ item.analysis.headroom.vrfs.remaining }} left</div>
                 <div>BDs</div><div>{{ item.analysis.headroom.bds.current }} / {{ item.analysis.headroom.bds.maximum }}</div><div>{{ item.analysis.headroom.bds.remaining }} left</div>
@@ -121,6 +122,11 @@
                 <div>Contracts</div><div>{{ item.analysis.headroom.contracts.current }} / {{ item.analysis.headroom.contracts.maximum }}</div><div>{{ item.analysis.headroom.contracts.remaining }} left</div>
                 <div>FEX</div><div>{{ item.analysis.headroom.fex.current }} / {{ item.analysis.headroom.fex.maximum }}</div><div>{{ item.analysis.headroom.fex.remaining }} left</div>
                 <div>Ports</div><div>{{ item.analysis.headroom.ports.current }} / {{ item.analysis.headroom.ports.maximum }}</div><div>{{ item.analysis.headroom.ports.remaining }} left</div>
+              </div>
+              <div class="limit-meta" style="margin-top:8px;">
+                Uplinks per leaf (assumed): {{ item.analysis.spine_capacity.uplinks_per_leaf }} ·
+                Spine ports: {{ item.analysis.spine_capacity.total_spine_ports }} ·
+                Remaining leafs before linecards: {{ item.analysis.spine_capacity.remaining_leafs_before_linecards }}
               </div>
             </div>
             <div class="detail-block">

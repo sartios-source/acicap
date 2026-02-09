@@ -8,6 +8,7 @@ class Config:
     DATA_DIR = BASE_DIR / "data"
     FABRICS_DIR = BASE_DIR / "fabrics"
     OUTPUT_DIR = BASE_DIR / "output"
+    UPLINKS_PER_LEAF_DEFAULT = int(os.environ.get("UPLINKS_PER_LEAF_DEFAULT", "2"))
     SECRET_KEY = os.environ.get("SECRET_KEY") or token_hex(16)
     MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB uploads
     ALLOWED_EXTENSIONS = {"json", "csv", "xml", "txt", "cfg", "conf", "zip"}
