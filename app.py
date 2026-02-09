@@ -89,7 +89,6 @@ def inject_fabrics():
 def index():
     current_fabric = session.get("current_fabric")
     fabrics = fm.list_fabrics()
-    fabric_summaries = []
     totals = {
         "leafs": 0,
         "spines": 0,
@@ -104,25 +103,13 @@ def index():
         "ports": 0,
         "ports_with_epg": 0,
     }
-    for fabric in fabrics:
-        name = fabric["name"]
-        try:
-            summary_data = _get_cached_summary(name)
-        except Exception as exc:
-            summary_data = {"error": str(exc), "summary": {}, "ports": {}}
-        summary = summary_data.get("summary", {})
-        ports = summary_data.get("ports", {})
-        for key in ("leafs", "spines", "fex", "tenants", "vrfs", "bds", "epgs", "subnets", "contracts"):
-            totals[key] += int(summary.get(key, 0) or 0)
-        totals["endpoints"] += int(summary.get("endpoints", 0) or 0)
-        totals["ports"] += int(ports.get("total", 0) or 0)
-        totals["ports_with_epg"] += int(ports.get("ports_with_epg", 0) or 0)
-        fabric_summaries.append({
-            "fabric": name,
-            "meta": fabric,
-            "summary": summary_data
-        })
-    return render_template("index.html", current_fabric=current_fabric, fabrics=fabrics, fabric_summaries=fabric_summaries, totals=totals)
+    return render_template("index.html", current_fabric=current_fabric, fabrics=fabrics, totals=totals)
+
+
+@app.route("/api/summary/<fabric_name>")
+def api_summary(fabric_name):
+    fabric_name = validate_fabric_name(fabric_name)
+    return jsonify(_get_cached_summary(fabric_name))
 
 
 @app.route("/upload_page")

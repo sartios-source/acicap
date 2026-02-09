@@ -18,14 +18,14 @@
     </div>
     <input id="fabric-filter" class="sidebar-filter" placeholder="Filter fabrics..." oninput="filterFabrics()">
     <div class="fabric-list" id="fabric-list">
-      {% for item in fabric_summaries %}
-      <button class="fabric-item" data-fabric="{{ item.fabric }}" onclick="loadFabric('{{ item.fabric }}')">
-        <div class="fabric-name">{{ item.fabric }}</div>
-        <div class="fabric-meta">{{ item.meta.dataset_count }} datasets · {{ item.meta.modified }}</div>
+      {% for item in fabrics %}
+      <button class="fabric-item" data-fabric="{{ item.name }}" onclick="loadFabric('{{ item.name }}')">
+        <div class="fabric-name">{{ item.name }}</div>
+        <div class="fabric-meta">{{ item.dataset_count }} datasets · {{ item.modified }}</div>
         <div class="fabric-mini">
-          <span>{{ item.summary.summary.leafs }} leafs</span>
-          <span>{{ item.summary.summary.epgs }} epgs</span>
-          <span>{{ item.summary.ports.ports_with_epg }} ports w/ epg</span>
+          <span data-fabric-metric="leafs">...</span>
+          <span data-fabric-metric="epgs">...</span>
+          <span data-fabric-metric="ports">...</span>
         </div>
       </button>
       {% else %}
@@ -48,23 +48,23 @@
     <div class="summary-grid">
       <div class="summary-card">
         <div class="metric-title">Leafs</div>
-        <div class="metric-value" data-count="{{ totals.leafs }}">0</div>
-        <div class="metric-sub">Spines {{ totals.spines }}</div>
+        <div class="metric-value" data-count="0" id="total-leafs">0</div>
+        <div class="metric-sub" id="total-spines">Spines 0</div>
       </div>
       <div class="summary-card">
         <div class="metric-title">EPGs</div>
-        <div class="metric-value" data-count="{{ totals.epgs }}">0</div>
-        <div class="metric-sub">BDs {{ totals.bds }} · VRFs {{ totals.vrfs }}</div>
+        <div class="metric-value" data-count="0" id="total-epgs">0</div>
+        <div class="metric-sub" id="total-bd-vrf">BDs 0 · VRFs 0</div>
       </div>
       <div class="summary-card">
         <div class="metric-title">Tenants</div>
-        <div class="metric-value" data-count="{{ totals.tenants }}">0</div>
-        <div class="metric-sub">Endpoints {{ totals.endpoints }}</div>
+        <div class="metric-value" data-count="0" id="total-tenants">0</div>
+        <div class="metric-sub" id="total-endpoints">Endpoints 0</div>
       </div>
       <div class="summary-card">
         <div class="metric-title">Ports</div>
-        <div class="metric-value" data-count="{{ totals.ports }}">0</div>
-        <div class="metric-sub">Ports w/ EPG {{ totals.ports_with_epg }}</div>
+        <div class="metric-value" data-count="0" id="total-ports">0</div>
+        <div class="metric-sub" id="total-ports-epg">Ports w/ EPG 0</div>
       </div>
     </div>
 

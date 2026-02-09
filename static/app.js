@@ -220,4 +220,51 @@ window.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-count]').forEach(animateCount);
   document.querySelectorAll('.ring-progress').forEach(animateProgressRing);
   document.querySelectorAll('.progress-fill').forEach(animateProgressBar);
+  loadSummaries();
 });
+
+async function loadSummaries() {
+  const totals = {
+    leafs: 0,
+    spines: 0,
+    fex: 0,
+    tenants: 0,
+    vrfs: 0,
+    bds: 0,
+    epgs: 0,
+    subnets: 0,
+    contracts: 0,
+    endpoints: 0,
+    ports: 0,
+    ports_with_epg: 0
+  };
+  const buttons = document.querySelectorAll('.fabric-item');
+  for (const btn of buttons) {
+    const name = btn.dataset.fabric;
+    const res = await fetch(`/api/summary/${name}`);
+    const data = await res.json();
+    const summary = data.summary || {};
+    const ports = data.ports || {};
+    btn.querySelector('[data-fabric-metric="leafs"]').textContent = `${summary.leafs || 0} leafs`;
+    btn.querySelector('[data-fabric-metric="epgs"]').textContent = `${summary.epgs || 0} epgs`;
+    btn.querySelector('[data-fabric-metric="ports"]').textContent = `${ports.ports_with_epg || 0} ports w/ epg`;
+    totals.leafs += summary.leafs || 0;
+    totals.spines += summary.spines || 0;
+    totals.tenants += summary.tenants || 0;
+    totals.vrfs += summary.vrfs || 0;
+    totals.bds += summary.bds || 0;
+    totals.epgs += summary.epgs || 0;
+    totals.endpoints += summary.endpoints || 0;
+    totals.ports += ports.total || 0;
+    totals.ports_with_epg += ports.ports_with_epg || 0;
+  }
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('total-leafs', totals.leafs);
+  setText('total-spines', `Spines ${totals.spines}`);
+  setText('total-epgs', totals.epgs);
+  setText('total-bd-vrf', `BDs ${totals.bds} · VRFs ${totals.vrfs}`);
+  setText('total-tenants', totals.tenants);
+  setText('total-endpoints', `Endpoints ${totals.endpoints}`);
+  setText('total-ports', totals.ports);
+  setText('total-ports-epg', `Ports w/ EPG ${totals.ports_with_epg}`);
+}
