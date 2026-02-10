@@ -160,7 +160,6 @@ function computeInsights(data) {
   const headroom = data.headroom || {};
   const completeness = data.completeness || {};
   const spine = data.spine_capacity || {};
-  const insights = computeInsights(data);
   const ports = data.ports || {};
 
   const add = (severity, title, detail) => {
